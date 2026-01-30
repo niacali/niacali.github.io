@@ -46,6 +46,48 @@ const cache = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════
+// MAPEO DE ICONOS PARA CATEGORÍAS
+// ═══════════════════════════════════════════════════════════════════════
+
+const CATEGORIA_ICONS = {
+  "Camisetas": "shirt",
+  "Pantalones": "sports_pants",
+  "Zapatos": "kid_star",
+  "Accesorios": "watch",
+  "Chaquetas": "checkroom",
+  "Vestidos": "woman",
+  "Shorts": "square",
+  "Sudaderas": "checkroom",
+  "Sombreros": "sports_headgear",
+  "Bolsas": "backpack",
+  "Medias": "checkroom",
+  "Faldas": "woman",
+  "Camisas": "checkroom",
+  "Tenis": "sports",
+  "Ropa Deportiva": "sports",
+  "Ropa Casual": "checkroom",
+  "Ropa Formal": "checkroom",
+};
+
+// Función para obtener el icono de una categoría
+function getIconoCategoria(categoria) {
+  // Buscar coincidencia exacta o parcial
+  const iconoExacto = CATEGORIA_ICONS[categoria];
+  if (iconoExacto) return iconoExacto;
+  
+  // Búsqueda parcial por palabra clave
+  for (const [key, icon] of Object.entries(CATEGORIA_ICONS)) {
+    if (categoria.toLowerCase().includes(key.toLowerCase()) || 
+        key.toLowerCase().includes(categoria.toLowerCase())) {
+      return icon;
+    }
+  }
+  
+  // Icono por defecto
+  return "shopping_bag";
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // NOTIFICACIONES (TOAST SYSTEM)
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -161,13 +203,21 @@ function renderCategorias(productos) {
 
   const categorias = Object.keys(conteo).sort((a, b) => a.localeCompare(b, "es"));
   const items = [
-    { nombre: "Todas las categorías", valor: "", cantidad: productos.length }
-  ].concat(categorias.map(cat => ({ nombre: cat, valor: cat, cantidad: conteo[cat] })));
+    { nombre: "Todas las categorías", valor: "", cantidad: productos.length, icono: "shopping_bag" }
+  ].concat(categorias.map(cat => ({ 
+    nombre: cat, 
+    valor: cat, 
+    cantidad: conteo[cat],
+    icono: getIconoCategoria(cat)
+  })));
 
   items.forEach(item => {
     const card = document.createElement("div");
     card.className = "categoria-card";
     card.innerHTML = `
+      <div class="categoria-icon">
+        <span class="material-symbols-outlined">${item.icono}</span>
+      </div>
       <div class="categoria-nombre">${item.nombre}</div>
       <div class="categoria-cantidad">${item.cantidad} productos</div>
     `;
@@ -657,23 +707,24 @@ function render(productos) {
         <h3>${p.nombre}</h3>
         <div class="precio">$ ${Number(p.precio).toLocaleString()}</div>
 
-        <div class="qty-card">
-          <button onclick="cambiarCantidadCard(${p.id}, -1)" title="Disminuir cantidad">−</button>
-          <input
-            type="number"
-            min="1"
-            value="1"
-            id="qty-${p.id}"
-            aria-label="Cantidad de ${p.nombre}"
-          >
-          <button onclick="cambiarCantidadCard(${p.id}, 1)" title="Aumentar cantidad">+</button>
+        <div class="action-row">
+          <div class="qty-card-compact">
+            <button onclick="cambiarCantidadCard(${p.id}, -1)" title="Disminuir cantidad">−</button>
+            <input
+              type="number"
+              min="1"
+              value="1"
+              id="qty-${p.id}"
+              aria-label="Cantidad de ${p.nombre}"
+            >
+            <button onclick="cambiarCantidadCard(${p.id}, 1)" title="Aumentar cantidad">+</button>
+          </div>
+          <button class="btn-compact"
+            onclick='agregarAlCarrito(${JSON.stringify(p)}, document.getElementById("qty-${p.id}").value)'
+            title="Agregar al carrito">
+            🛒
+          </button>
         </div>
-
-        <button class="btn"
-          onclick='agregarAlCarrito(${JSON.stringify(p)}, document.getElementById("qty-${p.id}").value)'
-          title="Agregar ${p.nombre} al carrito">
-          🛒 Agregar
-        </button>
       </div>
     `;
 

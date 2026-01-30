@@ -289,55 +289,96 @@ body {
 
 .categorias-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
 }
 
 .categoria-card {
-  background: var(--surface);
-  border: 1px solid var(--border-light);
-  border-radius: 16px;
-  padding: 1.5rem;
+  background: linear-gradient(135deg, var(--surface) 0%, #fafafa 100%);
+  border: 2px solid var(--border-light);
+  border-radius: 20px;
+  padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 1rem;
   cursor: pointer;
   transition: all var(--transition-base);
   box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
+  text-align: center;
 }
 
-.categoria-card:hover {
-  transform: translateY(-6px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-light);
-}
-
-.categoria-card .categoria-nombre {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.categoria-card .categoria-cantidad {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.categoria-card::after {
-  content: "Ver productos →";
+.categoria-card::before {
+  content: "";
   position: absolute;
-  right: 1rem;
-  bottom: 1rem;
-  font-size: 0.85rem;
-  color: var(--primary);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-light));
   opacity: 0;
   transition: opacity var(--transition-base);
 }
 
-.categoria-card:hover::after {
+.categoria-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-light);
+  background: linear-gradient(135deg, #fff8f8 0%, var(--surface) 100%);
+}
+
+.categoria-card:hover::before {
   opacity: 1;
+}
+
+.categoria-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-base);
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.2);
+}
+
+.categoria-icon .material-symbols-outlined {
+  font-size: 48px;
+  color: var(--surface);
+  font-weight: 500;
+}
+
+.categoria-card:hover .categoria-icon {
+  transform: scale(1.1) rotate(-5deg);
+  box-shadow: 0 8px 24px rgba(198, 40, 40, 0.35);
+}
+
+.categoria-nombre {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.categoria-cantidad {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.categoria-card::after {
+  content: "→";
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  font-size: 1.5rem;
+  color: var(--primary);
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all var(--transition-base);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -465,25 +506,26 @@ body {
 }
 
 .card .info {
-  padding: 1rem;
+  padding: 0.75rem;
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 0.25rem;
 }
 
 .card h3 {
-  font-size: 1rem;
-  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
   color: var(--text-primary);
-  line-height: 1.4;
-  min-height: 2.8em;
+  line-height: 1.3;
+  min-height: 2.6em;
 }
 
 .card .precio {
   color: var(--primary);
   font-weight: 700;
-  font-size: 1.25rem;
-  margin: 0.5rem 0;
+  font-size: 1.2rem;
+  margin: 0.15rem 0 0.5rem 0;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -544,6 +586,108 @@ body {
 .qty-card input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Row de acciones compacta (cantidad + botón) */
+.action-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  height: 40px;
+  justify-content: space-between;
+}
+
+.qty-card-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem;
+  flex: 0 1 170px;
+  max-width: 170px;
+  background: var(--surface-dark);
+  padding: 0.35rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.qty-card-compact button {
+  width: 32px;
+  height: 32px;
+    min-width: 32px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+    flex-shrink: 0;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  padding: 0;
+}
+
+.qty-card-compact button:hover {
+  background: var(--primary-light);
+  transform: scale(1.1);
+}
+
+.qty-card-compact button:active {
+  transform: scale(0.9);
+}
+
+.qty-card-compact input {
+  flex: 1;
+  border: none;
+  text-align: center;
+  background: transparent;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 28px;
+  max-width: 40px;
+}
+
+.qty-card-compact input:focus {
+  outline: none;
+}
+
+.qty-card-compact input::-webkit-outer-spin-button,
+.qty-card-compact input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Botón compacto solo con icono */
+.btn-compact {
+  width: 45px;
+  height: 40px;
+  min-width: 45px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-base);
+  flex-shrink: 0;
+  padding: 0;
+  box-shadow: var(--shadow-md);
+}.btn-compact:hover {
+  transform: scale(1.1) translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-compact:active {
+  transform: scale(0.95);
 }
 
 .btn {
@@ -646,7 +790,6 @@ body {
   position: absolute;
   left: -70px;
   top: 50%;
-  transform: translateY(-50%);
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: white;
   border: none;
@@ -681,13 +824,10 @@ body {
 }
 
 .carrito-toggle-header:hover {
-  transform: translateY(-2px);
+  transform: scale(1.04);
   box-shadow: var(--shadow-lg);
 }
 
-.carrito-toggle-header:active {
-  transform: translateY(0);
-}
 
 .carrito-toggle-header.active {
   background: linear-gradient(135deg, var(--secondary), var(--secondary-light));
@@ -704,30 +844,27 @@ body {
 
 .carrito-badge {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: 2px;
+  right: 2px;
   background: var(--accent);
   color: white;
   border-radius: 50%;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.8);
 }
 
 .carrito-toggle:hover {
-  box-shadow: var(--shadow-xl);
-  transform: translateY(-50%) translateX(-4px);
+  box-shadow: var(--shadow-lg);
   opacity: 1;
 }
 
-.carrito-toggle:active {
-  transform: translateY(-50%) translateX(0);
-}
 
 .carrito-panel {
   width: 320px;
@@ -892,9 +1029,9 @@ body {
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: white;
   border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
   cursor: pointer;
   font-weight: bold;
   transition: all var(--transition-fast);
@@ -1001,7 +1138,7 @@ body {
   padding: 0.8rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface-dark);
+  background: #ffffff;
   color: var(--text-primary);
   font-size: 0.95rem;
   transition: all var(--transition-fast);
@@ -1182,7 +1319,25 @@ body {
   }
 
   .categorias-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .categoria-card {
+    padding: 1.5rem 1rem;
+  }
+
+  .categoria-icon {
+    width: 70px;
+    height: 70px;
+  }
+
+  .categoria-icon .material-symbols-outlined {
+    font-size: 40px;
+  }
+
+  .categoria-nombre {
+    font-size: 1rem;
   }
 
   .grid {
