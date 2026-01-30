@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Confirmación de Pedido - NIA-Cali | Toma Pedidos</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="app.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec1313",
+                        "background-light": "#fcf8f8",
+                        "background-dark": "#221010",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: "Plus Jakarta Sans", sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-[#1b0d0d] dark:text-white min-h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="flex items-center bg-background-light dark:bg-background-dark p-4 justify-between border-b border-gray-100 dark:border-white/10">
+<a href="index.html" class="text-[#1b0d0d] dark:text-white flex size-12 shrink-0 items-center justify-start cursor-pointer">
+<span class="material-symbols-outlined">close</span>
+</a>
+<h2 class="text-[#1b0d0d] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">Confirmación</h2>
+</header>
+<main class="flex-1 flex flex-col items-center justify-center px-6 py-8">
+<!-- Success Icon Section -->
+<div class="mb-8 flex flex-col items-center">
+<div class="w-24 h-24 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-white text-6xl">check_circle</span>
+</div>
+</div>
+<!-- Headline Text -->
+<h1 class="text-[#1b0d0d] dark:text-white tracking-tight text-[32px] font-bold leading-tight text-center pb-3">
+            ¡Pedido Guardado!
+        </h1>
+<!-- Body Text -->
+<p class="text-[#1b0d0d] dark:text-gray-300 text-base font-normal leading-relaxed text-center max-w-xs mb-8">
+            Tu pedido ha sido registrado exitosamente y NIA-Cali ya lo está gestionando.
+        </p>
+<!-- Order Reference Card -->
+<div class="w-full max-w-sm p-4 bg-white dark:bg-[#2d1a1a] border border-gray-100 dark:border-white/5 rounded-xl shadow-sm mb-12">
+<div class="flex items-center justify-between gap-4">
+<div class="flex flex-col gap-1">
+<p class="text-primary text-sm font-semibold uppercase tracking-wider">Referencia de pedido</p>
+<p id="order-number" class="text-[#1b0d0d] dark:text-white text-2xl font-bold tracking-tight">#NIA-00000</p>
+</div>
+<div class="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">receipt_long</span>
+</div>
+</div>
+</div>
+<!-- Decorative Context Image (Simulating inventory/logistics context) -->
+<div class="w-full max-w-sm mb-8">
+<div class="w-full aspect-[21/9] rounded-xl overflow-hidden grayscale opacity-50 dark:opacity-30 border border-dashed border-gray-300">
+<div class="w-full h-full bg-center bg-no-repeat bg-cover" data-alt="Blurred warehouse storage shelves background" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBmR5SAUFXgko2ptlIkFE1pg9n_3FFRctJ0JMMf1taJZdWpZ7q7NvN-acIu_S7WiuF844my8fa80ts5p6Qw1B8w2AROxwWpvbgZrJ7c4J_9xfLTCDVh6OYgLUChdWnaOubOJ1q0nsiXJnzdWXFkXpHf9MlSNKLapLp_fnh_HJLU2jS7dpH6XXBfTemYphmW5fhGG6JXMNnxIEnVgYEUBM1DrZoW9l1Qg_HwUeicHB1hhHM-y8zj3rSoGwYgMh67jm3f3PTmkNsKx5g");'>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Action Buttons -->
+<footer class="p-6 bg-background-light dark:bg-background-dark flex flex-col gap-3">
+<a href="index.html" class="w-full bg-primary text-white font-bold py-4 rounded-xl shadow-md hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+            Volver al Inicio
+        </a>
+<button onclick="viewOrders()" class="w-full bg-transparent text-[#1b0d0d] dark:text-white font-semibold py-3 rounded-xl hover:bg-black/5 transition-colors">
+            Ver mis pedidos
+        </button>
+<!-- iOS Home Indicator Safe Area Spacer -->
+<div class="h-4"></div>
+</footer>
+
+<script>
+async function loadConfirmation() {
+    try {
+        const manager = await ensureInventoryManagerReady();
+        
+        const lastOrder = localStorage.getItem('lastOrder');
+        if (lastOrder) {
+            const order = JSON.parse(lastOrder);
+            document.getElementById('order-number').textContent = order.orderNumber;
+        }
+    } catch (error) {
+        console.error('❌ Error cargando confirmación:', error);
+    }
+}
+
+function viewOrders() {
+    alert('Función de ver pedidos próximamente disponible en el panel de administración');
+    window.location.href = 'admin.html';
+}
+
+document.addEventListener('DOMContentLoaded', loadConfirmation);
+</script>
+
+</body></html>

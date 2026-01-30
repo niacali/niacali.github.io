@@ -50,23 +50,14 @@ const cache = {
 // ═══════════════════════════════════════════════════════════════════════
 
 const CATEGORIA_ICONS = {
-  "Camisetas": "shirt",
-  "Pantalones": "sports_pants",
-  "Zapatos": "kid_star",
-  "Accesorios": "watch",
-  "Chaquetas": "checkroom",
-  "Vestidos": "woman",
-  "Shorts": "square",
-  "Sudaderas": "checkroom",
-  "Sombreros": "sports_headgear",
-  "Bolsas": "backpack",
-  "Medias": "checkroom",
-  "Faldas": "woman",
-  "Camisas": "checkroom",
-  "Tenis": "sports",
-  "Ropa Deportiva": "sports",
-  "Ropa Casual": "checkroom",
-  "Ropa Formal": "checkroom",
+  "accesorios": "headphones",
+  "belleza": "styler",
+  "hogar": "home",
+  "portatiles": "laptop",
+  "sonido": "speaker",
+  "soportes": "tripod",
+  "temporada": "event",
+  "ventiladores": "mode_fan"
 };
 
 // Función para obtener el icono de una categoría
@@ -202,14 +193,12 @@ function renderCategorias(productos) {
   }, {});
 
   const categorias = Object.keys(conteo).sort((a, b) => a.localeCompare(b, "es"));
-  const items = [
-    { nombre: "Todas las categorías", valor: "", cantidad: productos.length, icono: "shopping_bag" }
-  ].concat(categorias.map(cat => ({ 
+  const items = categorias.map(cat => ({ 
     nombre: cat, 
     valor: cat, 
     cantidad: conteo[cat],
     icono: getIconoCategoria(cat)
-  })));
+  }));
 
   items.forEach(item => {
     const card = document.createElement("div");

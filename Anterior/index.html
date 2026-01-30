@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Inicio - NIA-Cali | Toma Pedidos</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="app.js" defer></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec1313",
+                        "background-light": "#ffffff",
+                    },
+                    fontFamily: {
+                        "sans": ["Roboto", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        body {
+            font-family: 'Roboto', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 100dvh;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }#menu-toggle:checked ~ #sidebar {
+            transform: translateX(0);
+        }
+        #menu-toggle:checked ~ #overlay {
+            display: block;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-white text-slate-900 min-h-screen font-sans overflow-x-hidden">
+<input class="hidden peer" id="menu-toggle" type="checkbox"/>
+<label class="fixed inset-0 bg-black/50 z-[60] hidden transition-opacity" for="menu-toggle" id="overlay"></label>
+<aside class="fixed top-0 left-0 h-full w-[280px] bg-white z-[70] transform -translate-x-full transition-transform duration-300 ease-in-out shadow-2xl flex flex-col" id="sidebar">
+<div class="p-6 bg-primary flex flex-col gap-2">
+<div class="flex items-center gap-3">
+<div class="bg-white/20 p-1.5 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[24px]">inventory_2</span>
+</div>
+<h1 class="text-lg font-black leading-tight tracking-tight uppercase italic text-white">NIA-Cali</h1>
+</div>
+<p class="text-white/80 text-xs mt-2 font-medium">NIA-Cali · Toma Pedidos Online</p>
+</div>
+<nav class="flex-1 py-6">
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-4 px-6 py-4 text-primary bg-primary/5 font-bold border-r-4 border-primary" href="catalogo.html">
+<span class="material-symbols-outlined">home</span>
+<span>Inicio</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-4 px-6 py-4 text-slate-700 hover:bg-slate-50 transition-colors" href="carrito.html">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span>Carrito</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-4 px-6 py-4 text-slate-700 hover:bg-slate-50 transition-colors" href="admin.html">
+<span class="material-symbols-outlined">settings</span>
+<span>Administración</span>
+</a>
+</li>
+</ul>
+</nav>
+<div class="p-6 border-t border-slate-100">
+<button class="flex items-center gap-4 text-slate-500 text-sm font-medium">
+<span class="material-symbols-outlined">logout</span>
+                Cerrar Sesión
+            </button>
+</div>
+</aside>
+<header class="sticky top-0 z-50 bg-white border-b border-slate-100 shadow-sm">
+<div class="flex items-center p-4 justify-between max-w-md mx-auto">
+<div class="flex items-center gap-3">
+<label class="flex size-10 items-center justify-center rounded-full active:bg-slate-100 transition-colors cursor-pointer" for="menu-toggle">
+<span class="material-symbols-outlined text-primary text-[28px]">menu</span>
+</label>
+<h1 class="text-lg font-black leading-tight tracking-tight uppercase italic text-primary">NIA-Cali</h1>
+</div>
+<div class="flex gap-1">
+<a href="carrito.html" class="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 text-slate-600 transition-colors relative">
+<span class="material-symbols-outlined">shopping_cart</span>
+<span id="cart-badge" class="absolute top-1 right-1 bg-primary text-white text-[10px] size-4 rounded-full flex items-center justify-center font-bold" style="display:none;">0</span>
+</a>
+</div>
+</div>
+</header>
+<main class="max-w-md mx-auto">
+<div class="px-4 pt-8 pb-4">
+<p class="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">Toma Pedidos Online</p>
+<h2 class="text-2xl font-extrabold leading-tight mt-1 text-slate-900">Bienvenido a NIA-Cali</h2>
+</div>
+</div>
+</label>
+</div>
+<div class="flex items-center justify-between px-4 pt-6 pb-2">
+<h3 class="text-base font-bold text-slate-900 uppercase tracking-tight">Categorías</h3>
+</div>
+<div id="categories-grid" class="grid grid-cols-2 gap-4 p-4">
+<!-- Las categorías se cargarán dinámicamente -->
+</div>
+<div class="px-4 py-8 mb-10">
+<div class="bg-white border-2 border-primary/20 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+<div class="pr-4">
+<h4 class="font-bold text-slate-900">¿Necesitas ayuda?</h4>
+<p class="text-xs text-slate-500 mt-1">Habla directamente con un asesor</p>
+</div>
+<button class="bg-primary text-white size-12 rounded-xl flex items-center justify-center shadow-lg shadow-primary/30 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">phone</span>
+</button>
+</div>
+</div>
+</main>
+
+<script>
+// Cargar categorías dinámicamente
+async function loadCategories() {
+    try {
+        const manager = await ensureInventoryManagerReady();
+        const categories = manager.getCategories();
+        const grid = document.getElementById('categories-grid');
+        
+        if (!categories || categories.length === 0) {
+            console.warn('⚠️ No hay categorías disponibles');
+            console.error('🔧 Ejecuta localStorage.clear() en la consola (F12) y recarga la página');
+            grid.innerHTML = `
+                <div class="col-span-2 text-center py-12">
+                    <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-6 max-w-md mx-auto">
+                        <span class="material-symbols-outlined text-red-500 text-5xl mb-3">error</span>
+                        <p class="text-red-800 font-bold mb-2">No hay categorías disponibles</p>
+                        <p class="text-red-600 text-sm mb-4">Datos corruptos en caché del navegador</p>
+                        <button onclick="localStorage.clear(); location.reload();" 
+                                class="bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-xl active:scale-95 transition-all shadow-lg">
+                            🗑️ Limpiar Caché y Recargar
+                        </button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        grid.innerHTML = categories.map(cat => `
+            <a href="catalogo.html?category=${cat.id}" class="group relative bg-white border-2 border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center gap-3 aspect-square shadow-sm active:scale-95 transition-transform overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+                <div class="size-16 rounded-full bg-primary/5 flex items-center justify-center mb-1">
+                    <span class="material-symbols-outlined text-primary text-3xl">${cat.icon}</span>
+                </div>
+                <p class="text-slate-900 text-sm font-bold text-center leading-tight">${cat.name}</p>
+            </a>
+        `).join('');
+        
+        updateCartBadge();
+    } catch (error) {
+        console.error('❌ Error cargando categorías:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadCategories);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Carrito - NIA-Cali | Toma Pedidos</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="app.js" defer></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec1313",
+                        "background-light": "#ffffff",
+                        "background-dark": "#1a1a1a",
+                    },
+                    fontFamily: {
+                        "display": ["Roboto", "sans-serif"],
+                        "sans": ["Roboto", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply font-sans bg-white;
+            }
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            min-height: 100dvh;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-white text-gray-900 antialiased">
+<div class="relative flex h-screen max-w-md mx-auto flex-col bg-white overflow-hidden border-x border-gray-100 shadow-xl">
+<header class="sticky top-0 z-10 flex items-center bg-white p-4 border-b border-gray-100 justify-between">
+<a href="index.html" class="text-primary flex size-10 items-center justify-center cursor-pointer">
+<span class="material-symbols-outlined">arrow_back_ios</span>
+</a>
+<h2 class="text-gray-900 text-lg font-bold leading-tight tracking-tight flex-1 text-center">Carrito de Pedidos</h2>
+<div class="flex w-10 items-center justify-end">
+<button onclick="clearCart()" class="text-primary text-xs font-bold leading-normal cursor-pointer uppercase tracking-wider">Limpiar</button>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto pt-2 pb-40">
+<div class="px-4 py-3 bg-gray-50 border-b border-gray-100 mb-2">
+<p id="cart-count" class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Inventario Seleccionado (0)</p>
+</div>
+<div id="cart-items" class="">
+<!-- Los items del carrito se cargarán dinámicamente -->
+</div>
+<div class="p-4 mt-2">
+<div class="flex gap-2">
+<input class="flex-1 rounded-lg border-gray-300 text-sm focus:border-primary focus:ring-primary" placeholder="Orden de Compra (Opcional)" type="text"/>
+<button class="px-4 py-2 border border-primary text-primary rounded-lg text-sm font-bold">Aplicar</button>
+</div>
+</div>
+</div>
+<div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-100 p-4 pb-10 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
+<div class="flex justify-between items-center mb-6 px-1">
+<p class="text-gray-900 text-lg font-bold leading-normal">Total</p>
+<p id="cart-total" class="text-primary text-2xl font-black leading-normal text-right">$ 0 COP</p>
+</div>
+<button onclick="openCheckoutModal()" class="w-full bg-primary hover:bg-primary/95 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+<span>Confirmar el pedido</span>
+<span class="material-symbols-outlined text-xl">chevron_right</span>
+</button>
+</div>
+
+<!-- Modal de datos del cliente -->
+<div id="checkout-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeCheckoutModal()"></div>
+    <div class="relative max-w-md w-full mx-auto bg-white rounded-2xl shadow-2xl p-6 mt-10">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <p class="text-xs font-semibold text-primary uppercase tracking-wider">Datos del Cliente</p>
+                <h3 class="text-lg font-bold text-gray-900 leading-tight">Completa para confirmar</h3>
+            </div>
+            <button class="text-gray-500" onclick="closeCheckoutModal()">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <form id="checkout-form" class="space-y-4" onsubmit="submitCheckoutForm(event)">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Nombre del cliente *</label>
+                <input id="customer-name" required class="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary" type="text" placeholder="Ej: Juan Pérez" />
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Ciudad de destino *</label>
+                <input id="customer-city" required class="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary" type="text" placeholder="Ej: Cali" />
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Teléfono / Contacto (opcional)</label>
+                <input id="customer-contact" class="w-full rounded-lg border-gray-300 focus:border-primary focus:ring-primary" type="text" placeholder="Ej: 300 123 4567" />
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeCheckoutModal()" class="flex-1 border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50">Cancelar</button>
+                <button id="submit-order-btn" type="submit" class="flex-1 bg-primary text-white font-bold py-3 rounded-xl shadow-md hover:bg-primary/90 active:scale-[0.99] flex items-center justify-center gap-2">
+                    <span>Confirmar Pedido</span>
+                    <span class="material-symbols-outlined text-xl">check</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+
+<script>
+async function loadCart() {
+    try {
+        const manager = await ensureInventoryManagerReady();
+        renderCart();
+    } catch (error) {
+        console.error('❌ Error cargando carrito:', error);
+    }
+}
+
+function renderCart() {
+    const cartItems = inventoryManager.getCartWithDetails();
+    const container = document.getElementById('cart-items');
+    const countEl = document.getElementById('cart-count');
+    const totalEl = document.getElementById('cart-total');
+    
+    const count = inventoryManager.getCartItemCount();
+    const total = inventoryManager.getCartTotal();
+    
+    countEl.textContent = `Inventario Seleccionado (${count})`;
+    totalEl.textContent = inventoryManager.formatPrice(total);
+    
+    if (cartItems.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-20 text-center">
+                <span class="material-symbols-outlined text-gray-300 text-6xl mb-4">shopping_cart</span>
+                <p class="text-gray-500 text-lg font-semibold mb-2">Tu carrito está vacío</p>
+                <p class="text-gray-400 text-sm mb-6">Agrega productos para comenzar tu pedido</p>
+                <a href="index.html" class="px-6 py-3 bg-primary text-white rounded-lg font-semibold">
+                    Ir a Categorías
+                </a>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = cartItems.map(item => {
+        const product = item.product;
+        return `
+            <div class="flex items-center gap-4 bg-white px-4 min-h-[88px] py-4 justify-between border-b border-gray-50">
+                <div class="flex items-center gap-4">
+                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-lg size-16 border border-gray-100" 
+                         style='background-image: url("${product.image}");'></div>
+                    <div class="flex flex-col justify-center">
+                        <p class="text-gray-900 text-base font-semibold leading-normal line-clamp-1">${product.name}</p>
+                        <p class="text-gray-500 text-sm font-normal leading-normal">${inventoryManager.formatPrice(product.price)} / ud</p>
+                        <p class="text-gray-900 text-sm font-bold mt-1">${inventoryManager.formatPrice(item.subtotal)}</p>
+                    </div>
+                </div>
+                <div class="shrink-0">
+                    <div class="flex items-center gap-2 text-white bg-gray-100 p-1 rounded-lg">
+                        <button onclick="decreaseQuantity(${product.id})" class="flex h-8 w-8 items-center justify-center rounded-md bg-white text-primary shadow-sm cursor-pointer">
+                            <span class="material-symbols-outlined text-lg">remove</span>
+                        </button>
+                        <input class="text-gray-900 text-sm font-bold w-6 p-0 text-center bg-transparent border-none focus:ring-0" 
+                               type="number" value="${item.quantity}" readonly/>
+                        <button onclick="increaseQuantity(${product.id})" class="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-white shadow-md cursor-pointer">
+                            <span class="material-symbols-outlined text-lg font-bold">add</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function increaseQuantity(productId) {
+    const item = inventoryManager.getCart().find(i => i.productId === productId);
+    if (item) {
+        inventoryManager.updateCartItemQuantity(productId, item.quantity + 1);
+        renderCart();
+    }
+}
+
+function decreaseQuantity(productId) {
+    const item = inventoryManager.getCart().find(i => i.productId === productId);
+    if (item) {
+        inventoryManager.updateCartItemQuantity(productId, item.quantity - 1);
+        renderCart();
+    }
+}
+
+function clearCart() {
+    if (confirm('¿Estás seguro de que deseas vaciar el carrito?')) {
+        inventoryManager.clearCart();
+        renderCart();
+        showNotification('Carrito vaciado', 'success');
+    }
+}
+
+function openCheckoutModal() {
+    if (inventoryManager.getCartItemCount() === 0) {
+        showNotification('El carrito está vacío', 'error');
+        return;
+    }
+    document.getElementById('checkout-modal').classList.remove('hidden');
+}
+
+function closeCheckoutModal() {
+    document.getElementById('checkout-modal').classList.add('hidden');
+    const btn = document.getElementById('submit-order-btn');
+    btn.disabled = false;
+    btn.querySelector('span').textContent = 'Confirmar Pedido';
+}
+
+async function submitCheckoutForm(event) {
+    event.preventDefault();
+    const name = document.getElementById('customer-name').value.trim();
+    const city = document.getElementById('customer-city').value.trim();
+    const contact = document.getElementById('customer-contact').value.trim();
+
+    if (!name || !city) {
+        showNotification('Nombre y ciudad son obligatorios', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('submit-order-btn');
+    btn.disabled = true;
+    btn.querySelector('span').textContent = 'Guardando...';
+
+    try {
+        const manager = await ensureInventoryManagerReady();
+        const order = await manager.createOrder({ nombre: name, ciudad: city, contacto: contact });
+        localStorage.setItem('lastOrder', JSON.stringify(order));
+        closeCheckoutModal();
+        window.location.href = 'confirmacion.html';
+    } catch (error) {
+        console.error('❌ Error creando pedido:', error);
+        showNotification(error.message || 'No se pudo crear el pedido', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.querySelector('span').textContent = 'Confirmar Pedido';
+        }
+    }
+}
+
+// Mantener compatibilidad si se invoca checkout()
+function checkout() {
+    openCheckoutModal();
+}
+
+document.addEventListener('DOMContentLoaded', loadCart);
+</script>
+
+</body></html>

@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - NIA-Cali</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="app.js" defer></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec1313",
+                        "background-light": "#ffffff",
+                    },
+                    fontFamily: {
+                        "sans": ["Roboto", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Estilos de validación */
+        .input-error {
+            border-color: #ef4444 !important;
+            background-color: #fef2f2;
+        }
+        
+        .input-success {
+            border-color: #10b981 !important;
+        }
+        
+        .error-message {
+            color: #ef4444;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Modal de Autenticación -->
+    <div id="auth-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4" style="display:none;">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-fade-in">
+            <div class="text-center mb-6">
+                <div class="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="material-symbols-outlined text-primary text-3xl">lock</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Acceso Restringido</h2>
+                <p class="text-gray-600 text-sm">Panel de Administración NIA-Cali</p>
+            </div>
+            
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Contraseña de Administrador</label>
+                    <input type="password" id="admin-password" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-center text-lg tracking-widest"
+                           placeholder="••••••••"
+                           autocomplete="off">
+                </div>
+                
+                <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined">login</span>
+                    Ingresar
+                </button>
+                
+                <div id="auth-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm text-center">
+                    <span class="material-symbols-outlined text-sm align-middle">error</span>
+                    Contraseña incorrecta
+                </div>
+                
+                <p class="text-xs text-gray-500 text-center mt-4">
+                    Contraseña por defecto: <code class="bg-gray-100 px-2 py-1 rounded">nia2026</code>
+                </p>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Contenido Principal (oculto hasta autenticación) -->
+    <div id="admin-content" style="display:none;">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-primary/10 p-2 rounded-lg">
+                        <span class="material-symbols-outlined text-primary text-2xl">inventory_2</span>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-black text-primary uppercase italic">NIA-Cali</h1>
+                        <p class="text-xs text-gray-500">Panel de Administración</p>
+                    </div>
+                </div>
+                <a href="index.html" class="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    <span class="material-symbols-outlined text-gray-700">storefront</span>
+                    <span class="text-sm font-semibold text-gray-700">Ver Tienda</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Tabs -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex gap-4">
+                <button onclick="showTab('products')" id="tab-products" class="tab-button active px-4 py-3 font-semibold border-b-2 transition-colors">
+                    <span class="material-symbols-outlined align-middle mr-1">inventory</span>
+                    Productos
+                </button>
+                <button onclick="showTab('orders')" id="tab-orders" class="tab-button px-4 py-3 font-semibold border-b-2 transition-colors">
+                    <span class="material-symbols-outlined align-middle mr-1">receipt_long</span>
+                    Pedidos
+                </button>
+            </nav>
+        </div>
+
+        <!-- Panel de Productos -->
+        <div id="panel-products" class="tab-content">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">Gestión de Productos</h2>
+                    <button onclick="openProductModal()" class="px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors flex items-center gap-2">
+                        <span class="material-symbols-outlined">add</span>
+                        Agregar Producto
+                    </button>
+                </div>
+                <p class="text-gray-600 mb-6">Administra tu inventario: agrega, edita o elimina productos fácilmente.</p>
+                
+                <div id="products-table-container">
+                    <!-- Tabla de productos se cargará aquí -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Pedidos -->
+        <div id="panel-orders" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Historial de Pedidos</h2>
+                <p class="text-gray-600 mb-6">Revisa todos los pedidos realizados en la tienda.</p>
+                
+                <div id="orders-list-container">
+                    <!-- Lista de pedidos se cargará aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Agregar/Editar Producto -->
+    <div id="product-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-800">Agregar Producto</h3>
+                <button onclick="closeProductModal()" class="text-gray-400 hover:text-gray-600">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            
+            <form id="product-form" class="p-6 space-y-4">
+                <input type="hidden" id="product-id" />
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Nombre del Producto *</label>
+                    <input type="text" id="product-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Ej: Laptop Dell Inspiron">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Precio (COP) *</label>
+                    <input type="number" id="product-price" required min="0" step="1000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="25000">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Estado *</label>
+                    <select id="product-estado" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">Selecciona el estado</option>
+                        <option value="DISPONIBLE">✅ DISPONIBLE</option>
+                        <option value="AGOTADO">❌ AGOTADO</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Categoría *</label>
+                    <select id="product-category" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">Selecciona una categoría</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">URL de Imagen</label>
+                    <input type="url" id="product-image" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="https://ejemplo.com/imagen.jpg">
+                    <p class="text-xs text-gray-500 mt-1">Puedes usar URLs de Unsplash o cualquier imagen web</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Descripción</label>
+                    <textarea id="product-description" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Descripción breve del producto"></textarea>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 px-4 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+                        Guardar Producto
+                    </button>
+                    <button type="button" onclick="closeProductModal()" class="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    </div><!-- Cierre de admin-content -->
+
+    <script>
+        let currentEditingId = null;
+
+        async function initAdmin() {
+            try {
+                const manager = await ensureInventoryManagerReady();
+                loadProductsTable();
+                loadOrdersList();
+                loadCategories();
+                setupRealtimeValidation(); // Configurar validación en tiempo real
+            } catch (error) {
+                console.error('❌ Error inicializando admin:', error);
+            }
+        }
+
+        function showTab(tabName) {
+            // Actualizar botones
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active', 'border-primary', 'text-primary');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active', 'border-primary', 'text-primary');
+            document.getElementById(`tab-${tabName}`).classList.remove('border-transparent', 'text-gray-500');
+            
+            // Mostrar/ocultar paneles
+            document.querySelectorAll('.tab-content').forEach(panel => panel.classList.add('hidden'));
+            document.getElementById(`panel-${tabName}`).classList.remove('hidden');
+        }
+
+        function loadProductsTable() {
+            const products = inventoryManager.getProducts();
+            const container = document.getElementById('products-table-container');
+            
+            if (products.length === 0) {
+                container.innerHTML = '<div class="text-center py-12 text-gray-400"><p>No hay productos aún. ¡Agrega el primero!</p></div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Producto</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Categoría</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Precio</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Estado</th>
+                                <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            ${products.map(product => {
+                                const category = inventoryManager.getCategoryById(product.category);
+                                return `
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-3">
+                                                <img src="${product.image}" alt="${product.name}" class="w-12 h-12 rounded-lg object-cover border border-gray-200" onerror="this.src='https://via.placeholder.com/50'">
+                                                <div>
+                                                    <div class="font-semibold text-gray-800">${product.name}</div>
+                                                    <div class="text-xs text-gray-500">ID: ${product.id}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-gray-600">${category ? category.name : 'N/A'}</td>
+                                        <td class="px-4 py-3 text-sm font-semibold text-gray-800">${inventoryManager.formatPrice(product.price)}</td>
+                                        <td class="px-4 py-3">
+                                            <span class="px-3 py-1 text-xs font-bold rounded-full ${product.estado === 'DISPONIBLE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                                ${product.estado === 'DISPONIBLE' ? '✅ DISPONIBLE' : '❌ AGOTADO'}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex gap-2">
+                                                <button onclick="editProduct(${product.id})" class="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-xs font-semibold">
+                                                    Editar
+                                                </button>
+                                                <button onclick="deleteProduct(${product.id})" class="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs font-semibold">
+                                                    Eliminar
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function loadOrdersList() {
+            const orders = inventoryManager.getOrders();
+            const container = document.getElementById('orders-list-container');
+            
+            if (orders.length === 0) {
+                container.innerHTML = '<div class="text-center py-12 text-gray-400"><p>No hay pedidos aún.</p></div>';
+                return;
+            }
+            
+            container.innerHTML = orders.map(order => `
+                <div class="border border-gray-200 rounded-lg p-4 mb-4 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h4 class="font-bold text-lg text-gray-800">${order.orderNumber}</h4>
+                            <p class="text-sm text-gray-500">${inventoryManager.formatDate(order.createdAt)}</p>
+                        </div>
+                        <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold uppercase">
+                            ${order.status === 'pending' ? 'Pendiente' : order.status}
+                        </span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <p class="text-sm text-gray-600 font-semibold mb-2">Productos:</p>
+                        <ul class="space-y-1">
+                            ${order.items.map(item => `
+                                <li class="text-sm text-gray-700">
+                                    ${item.product.name} x${item.quantity} - ${inventoryManager.formatPrice(item.subtotal)}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 pt-3 flex justify-between items-center">
+                        <span class="font-bold text-gray-700">Total:</span>
+                        <span class="text-xl font-black text-primary">${inventoryManager.formatPrice(order.total)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadCategories() {
+            const categories = inventoryManager.getCategories();
+            const select = document.getElementById('product-category');
+            
+            select.innerHTML = '<option value="">Selecciona una categoría</option>' + 
+                categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+        }
+
+        // Validación en tiempo real
+        function setupRealtimeValidation() {
+            const priceInput = document.getElementById('product-price');
+            const imageInput = document.getElementById('product-image');
+            const nameInput = document.getElementById('product-name');
+            
+            // Validar precio en tiempo real
+            priceInput.addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                if (this.value && (isNaN(value) || value < 0)) {
+                    this.classList.add('input-error');
+                    this.classList.remove('input-success');
+                } else if (this.value) {
+                    this.classList.remove('input-error');
+                    this.classList.add('input-success');
+                } else {
+                    this.classList.remove('input-error', 'input-success');
+                }
+            });
+            
+            // Validar URL de imagen en tiempo real
+            imageInput.addEventListener('blur', function() {
+                const value = this.value.trim();
+                if (value && value !== '') {
+                    const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i;
+                    if (!urlPattern.test(value)) {
+                        this.classList.add('input-error');
+                        this.classList.remove('input-success');
+                    } else {
+                        this.classList.remove('input-error');
+                        this.classList.add('input-success');
+                    }
+                } else {
+                    this.classList.remove('input-error', 'input-success');
+                }
+            });
+            
+            // Validar nombre
+            nameInput.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value && value.length >= 3) {
+                    this.classList.remove('input-error');
+                    this.classList.add('input-success');
+                } else if (value) {
+                    this.classList.add('input-error');
+                    this.classList.remove('input-success');
+                } else {
+                    this.classList.remove('input-error', 'input-success');
+                }
+            });
+        }
+
+        function openProductModal(productId = null) {
+            currentEditingId = productId;
+            const modal = document.getElementById('product-modal');
+            const form = document.getElementById('product-form');
+            const title = document.getElementById('modal-title');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // Limpiar estilos de validación
+            form.querySelectorAll('input, select, textarea').forEach(input => {
+                input.classList.remove('input-error', 'input-success');
+            });
+            
+            if (productId) {
+                title.textContent = 'Editar Producto';
+                const product = inventoryManager.getProductById(productId);
+                document.getElementById('product-id').value = product.id;
+                document.getElementById('product-name').value = product.name;
+                document.getElementById('product-price').value = product.price;
+                document.getElementById('product-estado').value = product.estado;
+                document.getElementById('product-category').value = product.category;
+                document.getElementById('product-image').value = product.image;
+                document.getElementById('product-description').value = product.description || '';
+            } else {
+                title.textContent = 'Agregar Producto';
+                form.reset();
+            }
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
+            document.getElementById('product-modal').classList.remove('flex');
+            document.getElementById('product-form').reset();
+            currentEditingId = null;
+        }
+
+        function editProduct(id) {
+            openProductModal(id);
+        }
+
+        function deleteProduct(id) {
+            if (confirm('¿Estás seguro de eliminar este producto?')) {
+                inventoryManager.deleteProduct(id);
+                loadProductsTable();
+                showNotification('Producto eliminado correctamente');
+            }
+        }
+
+        // Función de validación
+        function validateProductForm() {
+            const name = document.getElementById('product-name').value.trim();
+            const price = document.getElementById('product-price').value;
+            const estado = document.getElementById('product-estado').value;
+            const category = document.getElementById('product-category').value;
+            const image = document.getElementById('product-image').value.trim();
+            
+            // Validar nombre
+            if (!name || name.length < 3) {
+                showNotification('El nombre debe tener al menos 3 caracteres', 'error');
+                return false;
+            }
+            
+            // Validar precio
+            if (!price || parseFloat(price) < 0) {
+                showNotification('El precio debe ser un número positivo', 'error');
+                return false;
+            }
+            
+            // Validar estado
+            if (!estado) {
+                showNotification('Debes seleccionar un estado', 'error');
+                return false;
+            }
+            
+            // Validar categoría
+            if (!category) {
+                showNotification('Debes seleccionar una categoría', 'error');
+                return false;
+            }
+            
+            // Validar URL de imagen (si se proporciona)
+            if (image && image !== '') {
+                const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i;
+                if (!urlPattern.test(image)) {
+                    showNotification('La URL de la imagen no es válida. Debe terminar en .jpg, .png, .gif, .webp o .svg', 'error');
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+
+        document.getElementById('product-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Validar antes de procesar
+            if (!validateProductForm()) {
+                return;
+            }
+            
+            const productData = {
+                name: document.getElementById('product-name').value.trim(),
+                price: parseFloat(document.getElementById('product-price').value),
+                estado: document.getElementById('product-estado').value,
+                category: document.getElementById('product-category').value,
+                image: document.getElementById('product-image').value.trim() || 'https://via.placeholder.com/400',
+                description: document.getElementById('product-description').value.trim()
+            };
+            
+            try {
+                if (currentEditingId) {
+                    await inventoryManager.updateProduct(currentEditingId, productData);
+                    showNotification('Producto actualizado correctamente', 'success');
+                } else {
+                    await inventoryManager.addProduct(productData);
+                    showNotification('Producto agregado correctamente', 'success');
+                }
+                await loadProductsTable();
+                closeProductModal();
+            } catch (err) {
+                console.error('Error guardando producto:', err);
+                showNotification('No se pudo guardar el producto. Intenta de nuevo.', 'error');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', initAdmin);
+        
+        // ============================================
+        // SISTEMA DE AUTENTICACIÓN
+        // ============================================
+        
+        const ADMIN_PASSWORD = 'nia2026'; // Cambiar esta contraseña en producción
+        
+        function checkAuth() {
+            const isAuthenticated = sessionStorage.getItem('adminAuth') === 'true';
+            
+            if (isAuthenticated) {
+                document.getElementById('auth-modal').style.display = 'none';
+                document.getElementById('admin-content').style.display = 'block';
+            } else {
+                document.getElementById('auth-modal').style.display = 'flex';
+                document.getElementById('admin-content').style.display = 'none';
+            }
+        }
+        
+        document.getElementById('auth-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const password = document.getElementById('admin-password').value;
+            const errorDiv = document.getElementById('auth-error');
+            
+            if (password === ADMIN_PASSWORD) {
+                sessionStorage.setItem('adminAuth', 'true');
+                errorDiv.classList.add('hidden');
+                checkAuth();
+                initAdmin();
+            } else {
+                errorDiv.classList.remove('hidden');
+                document.getElementById('admin-password').value = '';
+                document.getElementById('admin-password').focus();
+                
+                // Shake animation
+                const modal = document.querySelector('#auth-modal > div');
+                modal.style.animation = 'shake 0.5s';
+                setTimeout(() => modal.style.animation = '', 500);
+            }
+        });
+        
+        // Verificar autenticación al cargar
+        window.addEventListener('load', checkAuth);
+    </script>
+    
+    <style>
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+        
+        @keyframes fade-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .animate-fade-in {
+            animation: fade-in 0.3s ease-out;
+        }
+    </style>
+</body>
+</html>
