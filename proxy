@@ -1,0 +1,11 @@
+proxy de cloudflare para pedidos
+Proxy: https://pedido-proxy.pedidosnia-cali.workers.dev
+
+
+proxy de cloudflare para imagenes
+Proxy: https://tienda-image-proxy.pedidosnia-cali.workers.dev
+
+
+
+url capturar imagenes desde drive
+https://script.google.com/macros/s/AKfycbxLnHevOHpcj5zI8bU4OvelrBZpb-mtdG_7wi1U5NZy3zN5Mxk470P4ia8NtojguQsm/exec

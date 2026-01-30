@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catálogo de Productos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<div class="carrito">
+  <h3>🛒 Carrito</h3>
+  <div id="carritoItems"></div>
+  <strong>Total:</strong>
+  <div id="carritoTotal">$ 0</div>
+
+  <input id="clienteNombre" placeholder="Nombre completo">
+  <input id="clienteCiudad" placeholder="Ciudad">
+
+  <button onclick="enviarPedido()">Finalizar pedido</button>
+</div>
+
+<body>
+
+<header class="header">
+  <h1>Catálogo de Productos</h1>
+
+  <select id="categoriaFiltro">
+    <option value="">Todas las categorías</option>
+  </select>
+</header>
+
+<main>
+  <div id="productos" class="grid"></div>
+
+  <div class="paginacion">
+    <button id="prev">◀</button>
+    <span id="pageInfo"></span>
+    <button id="next">▶</button>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
