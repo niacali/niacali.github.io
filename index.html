@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Catálogo de Productos - Tienda Moderna</title>
+  <title>Catálogo de Productos - NIA Cali</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -11,21 +11,33 @@
   <!-- HEADER MEJORADO -->
   <header class="header">
     <div class="header-content">
-      <h1 class="header-title">🛍️ Tienda Premium</h1>
-      <select id="categoriaFiltro" class="select-categorias">
-        <option value="">Todas las categorías</option>
-      </select>
+      <h1 class="header-title">🛍️ NIA Cali</h1>
+      <div class="header-actions">
+        <button id="categoriasBtn" class="btn-header" title="Ver categorías">
+          🏷️ Categorías
+        </button>
+        <button id="carritoToggle" class="carrito-toggle carrito-toggle-header" title="Abrir carrito">
+          <span class="carrito-icon">🛒</span>
+          <span id="cartoBadge" class="carrito-badge">0</span>
+        </button>
+      </div>
     </div>
   </header>
 
   <!-- MAIN CONTENT -->
   <main class="main-content">
     <!-- PRODUCTOS GRID -->
-    <section class="productos-section">
+    <section id="categoriasSection" class="categorias-section">
+      <h2 class="section-title">Explora por categorías</h2>
+      <div id="categoriasGrid" class="categorias-grid"></div>
+    </section>
+
+    <section id="productosSection" class="productos-section">
+      <div id="categoriaBreadcrumb" class="categoria-breadcrumb" aria-live="polite"></div>
       <div id="productos" class="grid"></div>
       
       <!-- PAGINACIÓN MEJORADA -->
-      <div class="paginacion">
+      <div id="paginacion" class="paginacion">
         <button id="prev" class="btn-paginacion">
           <span>◀</span> Anterior
         </button>
@@ -39,12 +51,6 @@
 
   <!-- CARRITO COLAPSABLE -->
   <aside id="carritoContainer" class="carrito-container">
-    <!-- Toggle Button (solo visible cuando está colapsado en móvil) -->
-    <button id="carritoToggle" class="carrito-toggle" title="Abrir carrito">
-      <span class="carrito-icon">🛒</span>
-      <span id="cartoBadge" class="carrito-badge">0</span>
-    </button>
-
     <!-- Carrito Panel -->
     <div class="carrito-panel">
       <div class="carrito-header">
@@ -91,6 +97,25 @@
 
   <!-- NOTIFICACIONES TOAST -->
   <div id="toastContainer" class="toast-container"></div>
+
+  <!-- MODAL DE PRODUCTO EXPANDIDO -->
+  <div id="productoModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="cerrarModalProducto()"></div>
+    <div class="modal-content">
+      <button class="modal-close" onclick="cerrarModalProducto()" title="Cerrar modal">✕</button>
+      <div class="modal-body">
+        <img id="modalImg" src="" alt="Producto expandido" class="modal-imagen">
+        <div class="modal-info">
+          <h2 id="modalNombre"></h2>
+          <div class="modal-precio" id="modalPrecio"></div>
+          <div class="modal-descripcion">
+            <p>Haz clic en la imagen para ver el detalle completo del producto</p>
+          </div>
+          <button class="btn btn-modal" onclick="cerrarModalProducto()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- SCRIPTS -->
   <script src="app.js"></script>
