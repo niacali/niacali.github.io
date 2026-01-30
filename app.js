@@ -125,15 +125,20 @@ const toast = new ToastNotificacion();
 // MODAL DE PRODUCTO EXPANDIDO
 // ═══════════════════════════════════════════════════════════════════════
 
-function abrirModalProducto(producto, imagenSrc) {
+function abrirModalProducto(producto, imagenSrc, fallbackSrc) {
   const modal = document.getElementById("productoModal");
   const modalImg = document.getElementById("modalImg");
   const modalNombre = document.getElementById("modalNombre");
   const modalPrecio = document.getElementById("modalPrecio");
+  modal.classList.remove("modal-closing");
   
   // Llenar datos del modal
-  modalImg.src = imagenSrc;
   modalImg.alt = producto.nombre;
+  if (fallbackSrc) {
+    cargarImagenDirecta(modalImg, imagenSrc, fallbackSrc);
+  } else {
+    modalImg.src = imagenSrc;
+  }
   modalNombre.textContent = producto.nombre;
   modalPrecio.textContent = `$ ${Number(producto.precio).toLocaleString()}`;
   
@@ -146,8 +151,13 @@ function abrirModalProducto(producto, imagenSrc) {
 
 function cerrarModalProducto() {
   const modal = document.getElementById("productoModal");
-  modal.style.display = "none";
-  document.body.style.overflow = "auto"; // Restaurar scroll
+  if (!modal || modal.style.display === "none") return;
+  modal.classList.add("modal-closing");
+  setTimeout(() => {
+    modal.style.display = "none";
+    modal.classList.remove("modal-closing");
+    document.body.style.overflow = "auto"; // Restaurar scroll
+  }, 220);
 }
 
 // Cerrar modal con tecla Escape
@@ -164,6 +174,39 @@ document.addEventListener("click", (e) => {
     cerrarModalProducto();
   }
 });
+
+// Cerrar modal al hacer clic en la imagen
+document.addEventListener("click", (e) => {
+  if (e.target && e.target.id === "modalImg") {
+    cerrarModalProducto();
+  }
+});
+
+// Cerrar modal con swipe (móvil)
+let modalTouchStartY = 0;
+let modalTouchStartX = 0;
+
+document.addEventListener("touchstart", (e) => {
+  const modal = document.getElementById("productoModal");
+  if (modal && modal.style.display === "flex") {
+    const touch = e.touches[0];
+    modalTouchStartY = touch.clientY;
+    modalTouchStartX = touch.clientX;
+  }
+}, { passive: true });
+
+document.addEventListener("touchend", (e) => {
+  const modal = document.getElementById("productoModal");
+  if (modal && modal.style.display === "flex") {
+    const touch = e.changedTouches[0];
+    const deltaY = touch.clientY - modalTouchStartY;
+    const deltaX = Math.abs(touch.clientX - modalTouchStartX);
+
+    if ((Math.abs(deltaY) > 60 && deltaX < 80) || (deltaX > 80 && Math.abs(deltaY) < 60)) {
+      cerrarModalProducto();
+    }
+  }
+}, { passive: true });
 
 // ═══════════════════════════════════════════════════════════════════════
 // CATEGORÍAS - VISTA INICIAL
@@ -676,21 +719,18 @@ function render(productos) {
     card.className = "card";
 
     card.innerHTML = `
-      <div class="card-imagen-wrapper" style="cursor: pointer; overflow: hidden; border-radius: 12px 12px 0 0;">
+      <div class="card-imagen-wrapper" data-img="${proxyUrl || p.imagen}" data-fallback="${fallbackSVG}" style="cursor: pointer; overflow: hidden; border-radius: 12px 12px 0 0;">
         <img
           class="card-imagen"
           src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCI+PC9zdmc+"
           data-src="${proxyUrl || p.imagen}"
           data-fallback="${fallbackSVG}"
-          data-producto='${JSON.stringify(p)}'
           loading="lazy"
           alt="${p.nombre}"
           style="transition: transform 0.3s ease; display: block; width: 100%; height: auto;"
           title="Haz clic para ver en grande"
-          onmouseover="this.style.transform='scale(1.05)'"
-          onmouseout="this.style.transform='scale(1)'"
-          onclick="abrirModalProducto(${JSON.stringify(p)}, this.src)"
         >
+        <button class="card-imagen-cta" type="button">🔍 Ver en grande</button>
       </div>
       <div class="info">
         <h3>${p.nombre}</h3>
@@ -716,6 +756,20 @@ function render(productos) {
         </div>
       </div>
     `;
+
+    const wrapper = card.querySelector(".card-imagen-wrapper");
+    const img = card.querySelector(".card-imagen");
+    const cta = card.querySelector(".card-imagen-cta");
+
+    wrapper.dataset.producto = JSON.stringify(p);
+
+    const abrirDesdeCard = () => {
+      const producto = JSON.parse(wrapper.dataset.producto);
+      abrirModalProducto(producto, wrapper.dataset.img || img.src, wrapper.dataset.fallback);
+    };
+
+    img.addEventListener("click", abrirDesdeCard);
+    cta.addEventListener("click", abrirDesdeCard);
 
     productosDiv.appendChild(card);
   });

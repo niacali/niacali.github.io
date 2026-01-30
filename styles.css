@@ -485,23 +485,26 @@ body {
 }
 
 /* Indicador visual de que la imagen es clickeable */
-.card-imagen-wrapper::after {
-  content: "🔍 Ver en grande";
+.card-imagen-cta {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
   color: white;
-  padding: 1rem;
+  padding: 0.85rem 1rem;
   font-size: 0.85rem;
   font-weight: 600;
   opacity: 0;
   transition: opacity var(--transition-base);
-  pointer-events: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
 }
 
-.card:hover .card-imagen-wrapper::after {
+.card:hover .card-imagen-cta,
+.card-imagen-cta:focus-visible {
   opacity: 1;
 }
 
@@ -1605,6 +1608,10 @@ select:focus-visible {
   animation: fadeIn var(--transition-base);
 }
 
+.modal.modal-closing {
+  animation: fadeOut 0.2s ease-out;
+}
+
 .modal-overlay {
   position: absolute;
   top: 0;
@@ -1629,6 +1636,10 @@ select:focus-visible {
   flex-direction: column;
   overflow: auto;
   animation: slideUp var(--transition-base);
+}
+
+.modal.modal-closing .modal-content {
+  animation: slideDown 0.2s ease-out;
 }
 
 .modal-close {
@@ -1760,6 +1771,26 @@ select:focus-visible {
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
   }
 }
 
