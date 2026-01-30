@@ -3,41 +3,96 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Catálogo de Productos</title>
+  <title>Catálogo de Productos - Tienda Moderna</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<div class="carrito">
-  <h3>🛒 Carrito</h3>
-  <div id="carritoItems"></div>
-  <strong>Total:</strong>
-  <div id="carritoTotal">$ 0</div>
-
-  <input id="clienteNombre" placeholder="Nombre completo">
-  <input id="clienteCiudad" placeholder="Ciudad">
-
-  <button onclick="enviarPedido()">Finalizar pedido</button>
-</div>
 
 <body>
+  <!-- HEADER MEJORADO -->
+  <header class="header">
+    <div class="header-content">
+      <h1 class="header-title">🛍️ Tienda Premium</h1>
+      <select id="categoriaFiltro" class="select-categorias">
+        <option value="">Todas las categorías</option>
+      </select>
+    </div>
+  </header>
 
-<header class="header">
-  <h1>Catálogo de Productos</h1>
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <!-- PRODUCTOS GRID -->
+    <section class="productos-section">
+      <div id="productos" class="grid"></div>
+      
+      <!-- PAGINACIÓN MEJORADA -->
+      <div class="paginacion">
+        <button id="prev" class="btn-paginacion">
+          <span>◀</span> Anterior
+        </button>
+        <span id="pageInfo" class="page-info"></span>
+        <button id="next" class="btn-paginacion">
+          Siguiente <span>▶</span>
+        </button>
+      </div>
+    </section>
+  </main>
 
-  <select id="categoriaFiltro">
-    <option value="">Todas las categorías</option>
-  </select>
-</header>
+  <!-- CARRITO COLAPSABLE -->
+  <aside id="carritoContainer" class="carrito-container">
+    <!-- Toggle Button (solo visible cuando está colapsado en móvil) -->
+    <button id="carritoToggle" class="carrito-toggle" title="Abrir carrito">
+      <span class="carrito-icon">🛒</span>
+      <span id="cartoBadge" class="carrito-badge">0</span>
+    </button>
 
-<main>
-  <div id="productos" class="grid"></div>
+    <!-- Carrito Panel -->
+    <div class="carrito-panel">
+      <div class="carrito-header">
+        <h2 class="carrito-title">🛒 Tu Carrito</h2>
+        <button id="carritoCloseBtn" class="btn-close" title="Cerrar carrito">✕</button>
+      </div>
 
-  <div class="paginacion">
-    <button id="prev">◀</button>
-    <span id="pageInfo"></span>
-    <button id="next">▶</button>
-  </div>
-</main>
+      <div id="carritoItems" class="carrito-items"></div>
 
-<script src="app.js"></script>
+      <!-- CARRITO VACÍO STATE -->
+      <div id="carritoVacio" class="carrito-vacio">
+        <div class="empty-icon">🛍️</div>
+        <p>Tu carrito está vacío</p>
+      </div>
+
+      <div class="carrito-footer">
+        <div class="carrito-total">
+          <span>Total:</span>
+          <strong id="carritoTotal">$ 0</strong>
+        </div>
+
+        <div class="carrito-form">
+          <input 
+            id="clienteNombre" 
+            placeholder="Tu nombre completo"
+            class="input-cliente"
+            type="text"
+            aria-label="Nombre del cliente"
+          >
+          <input 
+            id="clienteCiudad" 
+            placeholder="Tu ciudad"
+            class="input-cliente"
+            type="text"
+            aria-label="Ciudad del cliente"
+          >
+          <button onclick="enviarPedido()" class="btn-finalizar">
+            ✓ Finalizar Pedido
+          </button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- NOTIFICACIONES TOAST -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- SCRIPTS -->
+  <script src="app.js"></script>
 </body>
 </html>
