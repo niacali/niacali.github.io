@@ -94,6 +94,9 @@
         <button class="admin-tab-btn active" data-tab="pedidos">
           <span class="material-symbols-outlined">receipt_long</span> Pedidos
         </button>
+        <button class="admin-tab-btn" data-tab="categorias">
+          <span class="material-symbols-outlined">category</span> Categorías
+        </button>
         <button class="admin-tab-btn" data-tab="productos">
           <span class="material-symbols-outlined">inventory_2</span> Productos
         </button>
@@ -120,6 +123,27 @@
         <div id="pedidosVacio" class="empty-state" style="display: none;">
           <span class="material-symbols-outlined">inbox</span>
           <p>No hay pedidos</p>
+        </div>
+      </section>
+
+      <!-- TAB: CATEGORÍAS -->
+      <section id="tab-categorias" class="admin-tab-content">
+        <div class="tab-header">
+          <h2>Gestión de Categorías</h2>
+          <div class="tab-actions">
+            <button onclick="abrirFormCategoria()" class="btn btn-primary btn-small">
+              ➕ Nueva Categoría
+            </button>
+          </div>
+        </div>
+
+        <div id="listaCategoriasAdmin" class="categorias-admin-lista">
+          <!-- Las categorías se cargarán aquí -->
+        </div>
+
+        <div id="categoriasVacio" class="empty-state" style="display: none;">
+          <span class="material-symbols-outlined">category</span>
+          <p>No hay categorías</p>
         </div>
       </section>
 
@@ -225,6 +249,53 @@
     </div>
   </div>
 
+  <!-- MODAL: EDITAR CATEGORÍA -->
+  <div id="modalEditarCategoria" class="modal-admin" style="display: none;">
+    <div class="modal-admin-content">
+      <button class="modal-close" onclick="cerrarModalEditarCategoria()">✕</button>
+      <h2>Editar Categoría</h2>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="editCategoriaId">ID:</label>
+          <input id="editCategoriaId" type="text" class="form-input" placeholder="ventiladores">
+        </div>
+
+        <div class="form-group">
+          <label for="editCategoriaNombre">Nombre:</label>
+          <input id="editCategoriaNombre" type="text" class="form-input" placeholder="Ventiladores">
+        </div>
+
+        <div class="form-group">
+          <label for="editCategoriaIcono">Icono (Material Symbols):</label>
+          <input id="editCategoriaIcono" type="text" class="form-input" placeholder="mode_fan">
+        </div>
+
+        <div class="form-group">
+          <label for="editCategoriaOrden">Orden:</label>
+          <input id="editCategoriaOrden" type="number" class="form-input" value="0">
+        </div>
+
+        <div class="form-group">
+          <label for="editCategoriaEstado">Estado:</label>
+          <select id="editCategoriaEstado" class="form-select">
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
+          </select>
+        </div>
+
+        <div class="modal-actions">
+          <button onclick="guardarCambioCategoria()" class="btn btn-primary">
+            Guardar Cambios
+          </button>
+          <button onclick="cerrarModalEditarCategoria()" class="btn btn-outline">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: EDITAR PRODUCTO -->
   <div id="modalEditarProducto" class="modal-admin" style="display: none;">
     <div class="modal-admin-content">
@@ -266,6 +337,46 @@
             Guardar Cambios
           </button>
           <button onclick="cerrarModalEditarProducto()" class="btn btn-outline">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDITAR CATEGORÍA -->
+  <div id="modalEditarCategoria" class="modal-admin" style="display: none;">
+    <div class="modal-admin-content">
+      <button class="modal-close" onclick="cerrarModalEditarCategoria()">✕</button>
+      <h2 id="modalCategoriaTitulo">Nueva Categoría</h2>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="editCategoriaNombre">Nombre:</label>
+          <input id="editCategoriaNombre" type="text" class="form-input" placeholder="Ej: Accesorios">
+        </div>
+
+        <div class="form-group">
+          <label for="editCategoriaIcono">Icono (Material Symbols):</label>
+          <input id="editCategoriaIcono" type="text" class="form-input" placeholder="Ej: headphones, home, shopping_bag">
+          <small style="color: #888; display: block; margin-top: 5px;">
+            Ver: <a href="https://fonts.google.com/icons" target="_blank" style="color: var(--primary);">Material Icons</a>
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="editCategoriaOrden">Orden (0-100):</label>
+          <input id="editCategoriaOrden" type="number" min="0" max="100" class="form-input" placeholder="0" value="0">
+        </div>
+
+        <div class="modal-actions">
+          <button onclick="guardarCambioCategoria()" class="btn btn-primary">
+            Guardar Categoría
+          </button>
+          <button id="btnEliminarCategoria" onclick="eliminarCategoria()" class="btn btn-danger" style="display: none;">
+            Eliminar
+          </button>
+          <button onclick="cerrarModalEditarCategoria()" class="btn btn-outline">
             Cancelar
           </button>
         </div>

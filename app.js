@@ -3,11 +3,16 @@
    Carrito Colapsable, Toasts, Mejor Gestión de Errores
    ═══════════════════════════════════════════════════════════════════════ */
 
+// Verificar si estamos en una página que no es admin.html
+if (document.body.classList.contains('admin-page') || window.location.pathname.includes('admin.html')) {
+  console.log("app.js: No se ejecuta en admin.html");
+} else {
+
 // ═══════════════════════════════════════════════════════════════════════
 // CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzrRc0e5xD9tLPFPsQNgGdfGaHTkJ5uuCLW_ZGZad0I68MBQKtm11yQNkZNOjxFL8SuhQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyg1Qa6hVxzdg7Gxqhjbp3391BppKVjUWSAKBMT4LumlavLj8GFNZ28Dk-JALMF6hIV/exec";
 const API_KEY = "TIENDA_API_2026";
 const CLOUDFLARE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
 const LIMIT = 20;
@@ -17,7 +22,7 @@ const LIMIT = 20;
 // ═══════════════════════════════════════════════════════════════════════
 
 let page = 0;
-let categoria = "";
+let categoriaSeleccionada = null; // Cambiar de 'categoria' a 'categoriaSeleccionada' y usar objeto
 let carrito = JSON.parse(localStorage.getItem("carrito")) || [];
 // Normalizar IDs del carrito para asegurar que son números
 carrito = carrito.map(item => ({
@@ -38,15 +43,18 @@ const carritoToggle = document.getElementById("carritoToggle");
 // Cache Frontend
 const cache = {
   productos: null,
+  categorias: null,
   timestamp: 0,
+  timestampCategorias: 0,
   ttl: 10 * 60 * 1000 // 10 minutos
 };
 
 // ═══════════════════════════════════════════════════════════════════════
-// MAPEO DE ICONOS PARA CATEGORÍAS
+// MAPEO DE ICONOS POR DEFECTO PARA CATEGORÍAS (fallback)
 // ═══════════════════════════════════════════════════════════════════════
 
-const CATEGORIA_ICONS = {
+const CATEGORIA_ICONS_DEFAULT = {
+  // Mapeo de categorías a iconos
   "accesorios": "headphones",
   "belleza": "styler",
   "hogar": "home",
@@ -54,23 +62,49 @@ const CATEGORIA_ICONS = {
   "sonido": "speaker",
   "soportes": "tripod",
   "temporada": "event",
-  "ventiladores": "mode_fan"
+  "ventiladores": "mode_fan",
+  // Mapeo de iconos de BD a Material Symbols válidos
+  "fire": "mode_fan",
+  "base": "foundation",
+  "sound": "speaker",
+  "house": "home",
+  "beauty": "spa",
+  "accesories": "headphones",
+  "things": "category",
+  "season": "event_note",
+  "other": "more_horiz"
 };
 
 // Función para obtener el icono de una categoría
-function getIconoCategoria(categoria) {
-  // Buscar coincidencia exacta o parcial
-  const iconoExacto = CATEGORIA_ICONS[categoria];
+function getIconoCategoria(categoria, categoriasDb = null) {
+  const categoriaStr = String(categoria || "").toLowerCase().trim();
+
+  // Primero buscar en datos de BD si existen
+  if (categoriasDb && Array.isArray(categoriasDb)) {
+    const cat = categoriasDb.find(c => {
+      const nombre = String(c.nombre || "").toLowerCase().trim();
+      const id = String(c.id || "").toLowerCase().trim();
+      return nombre === categoriaStr || id === categoriaStr;
+    });
+    if (cat && cat.icono) {
+      // Si el icono de BD existe, mapearlo a un icono válido de Material Symbols
+      const iconoMapeado = CATEGORIA_ICONS_DEFAULT[cat.icono];
+      return iconoMapeado || cat.icono; // fallback al icono original si no hay mapeo
+    }
+  }
+
+  // Fallback a mapeo local (coincidencia exacta)
+  const iconoExacto = CATEGORIA_ICONS_DEFAULT[categoriaStr];
   if (iconoExacto) return iconoExacto;
-  
+
   // Búsqueda parcial por palabra clave
-  for (const [key, icon] of Object.entries(CATEGORIA_ICONS)) {
-    if (categoria.toLowerCase().includes(key.toLowerCase()) || 
-        key.toLowerCase().includes(categoria.toLowerCase())) {
+  for (const [key, icon] of Object.entries(CATEGORIA_ICONS_DEFAULT)) {
+    if (categoriaStr.includes(key.toLowerCase()) ||
+        key.toLowerCase().includes(categoriaStr)) {
       return icon;
     }
   }
-  
+
   // Icono por defecto
   return "shopping_bag";
 }
@@ -218,13 +252,22 @@ function mostrarCategorias() {
 }
 
 async function irInicioCategorias() {
-  categoria = "";
+  categoriaSeleccionada = null;
   page = 0;
   mostrarCategorias();
   try {
-    const productos = await fetchProductos();
-    if (productos.length > 0) {
-      renderCategorias(productos);
+    // Intentar cargar categorías desde BD
+    let categoriasDb = await fetchCategorias();
+
+    // Si no hay categorías en BD, extraer dinámicamente de productos
+    if (!categoriasDb || categoriasDb.length === 0) {
+      console.log("📦 Extrayendo categorías dinámicamente de productos...");
+      const productos = await fetchProductos();
+      categoriasDb = await generarCategoriasDesdeProductos(productos);
+    }
+
+    if (categoriasDb && categoriasDb.length > 0) {
+      await renderCategorias(categoriasDb);
     }
   } catch (error) {
     console.error("Error al cargar categorías:", error);
@@ -239,9 +282,8 @@ function mostrarProductos() {
   paginacion.style.display = "flex";
 }
 
-function renderCategorias(productos) {
-  categoriasGrid.innerHTML = "";
-
+// Generar categorías dinámicamente desde productos si no existen en BD
+async function generarCategoriasDesdeProductos(productos) {
   const conteo = productos.reduce((acc, item) => {
     const key = item.categoria || "Sin categoría";
     acc[key] = (acc[key] || 0) + 1;
@@ -249,33 +291,78 @@ function renderCategorias(productos) {
   }, {});
 
   const categorias = Object.keys(conteo).sort((a, b) => a.localeCompare(b, "es"));
-  const items = categorias.map(cat => ({ 
-    nombre: cat, 
-    valor: cat, 
+  return categorias.map(cat => ({
+    id: String(cat || "").toLowerCase().trim(),
+    nombre: cat,
+    icono: getIconoCategoria(cat),
     cantidad: conteo[cat],
-    icono: getIconoCategoria(cat)
+    orden: 0,
+    estado: "activo"
   }));
+}
+
+// Renderizar categorías desde BD o datos generados
+async function renderCategorias(categoriasData) {
+  categoriasGrid.innerHTML = "";
+  
+  // Si categoriasData es un array de productos, procesarlo
+  if (categoriasData.length > 0 && categoriasData[0].precio !== undefined) {
+    categoriasData = await generarCategoriasDesdeProductos(categoriasData);
+  }
+
+  // Filtrar categorías activas si existe el campo estado
+  categoriasData = categoriasData.filter(item => {
+    const estado = String(item.estado || "activo").toLowerCase().trim();
+    return estado === "activo";
+  });
+
+  // Ordenar por campo "orden" si existe, sino alfabéticamente
+  const items = categoriasData.sort((a, b) => {
+    if (a.orden !== undefined && b.orden !== undefined) {
+      return a.orden - b.orden;
+    }
+    return (a.nombre || "").localeCompare(b.nombre || "", "es");
+  });
 
   items.forEach(item => {
+    const icono = getIconoCategoria(item.id || item.nombre, categoriasData);
+    const filtroCategoria = item.nombre || item.id;
     const card = document.createElement("div");
     card.className = "categoria-card";
     card.innerHTML = `
       <div class="categoria-icon">
-        <span class="material-symbols-outlined">${item.icono}</span>
+        <span class="material-symbols-outlined">${icono}</span>
       </div>
       <div class="categoria-nombre">${item.nombre}</div>
-      <div class="categoria-cantidad">${item.cantidad} productos</div>
+      <div class="categoria-cantidad">${item.cantidad ? item.cantidad + " productos" : ""}</div>
     `;
     card.addEventListener("click", () => {
-      categoria = item.valor;
+      categoriaSeleccionada = item; // Almacenar objeto completo
       page = 0;
-      const label = categoria ? categoria : "Todas las categorías";
+      const label = categoriaSeleccionada ? categoriaSeleccionada.nombre : "Todas las categorías";
       categoriaBreadcrumb.innerHTML = `Categoría: <span class="breadcrumb-muted">${label}</span>`;
       mostrarProductos();
       cargar();
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
     categoriasGrid.appendChild(card);
+  });
+}
+
+function actualizarConteoCategorias(productos, categoriasData) {
+  if (!productos || productos.length === 0) return categoriasData;
+
+  const conteo = productos.reduce((acc, item) => {
+    const key = String(item.categoria || "Sin categoría").toLowerCase().trim();
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  return categoriasData.map(cat => {
+    const nombreKey = String(cat.nombre || "").toLowerCase().trim();
+    const idKey = String(cat.id || "").toLowerCase().trim();
+    const cantidad = conteo[nombreKey] || conteo[idKey] || 0;
+    return { ...cat, cantidad };
   });
 }
 
@@ -297,9 +384,11 @@ function guardarCarrito() {
   actualizarBadgeCarrito();
 }
 
+// Proteger badge de carrito para páginas sin el elemento
 function actualizarBadgeCarrito() {
   const cantidadTotal = carrito.reduce((acc, item) => acc + item.cantidad, 0);
-  document.getElementById("cartoBadge").textContent = cantidadTotal;
+  const badge = document.getElementById("cartoBadge");
+  if (badge) badge.textContent = cantidadTotal;
 }
 
 function agregarAlCarrito(producto, cantidad) {
@@ -583,6 +672,46 @@ async function enviarPedido() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// CATEGORÍAS - FETCH Y CACHEO
+// ═══════════════════════════════════════════════════════════════════════
+
+async function fetchCategorias() {
+  // Verificar cache local
+  if (cache.categorias && Date.now() - cache.timestampCategorias < cache.ttl) {
+    console.log("📂 Usando cache de categorías");
+    return cache.categorias;
+  }
+
+  try {
+    console.log("📥 Obteniendo categorías de API...");
+    const res = await fetch(
+      `${API_URL}?action=getCategorias&key=${API_KEY}`
+    );
+
+    if (!res.ok) {
+      console.warn(`⚠️ HTTP ${res.status}: Usando fallback dinámico`);
+      return null;
+    }
+
+    const data = await res.json();
+    const items = Array.isArray(data) ? data : data.items;
+
+    if (items && Array.isArray(items)) {
+      cache.categorias = items;
+      cache.timestampCategorias = Date.now();
+      console.log(`✓ ${items.length} categorías cargadas desde BD`);
+      return items;
+    }
+
+    console.warn("⚠️ Respuesta de categorías inválida, usando fallback");
+    return null;
+  } catch (error) {
+    console.warn("⚠️ Error fetch categorías, usando fallback dinámico:", error);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // PRODUCTOS - FETCH Y CONVERSIÓN DE URLs
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -802,8 +931,13 @@ async function cargar() {
       return;
     }
 
-    const filtrados = categoria
-      ? all.filter(p => p.categoria === categoria)
+    const filtrados = categoriaSeleccionada
+      ? all.filter(p => {
+          const prodCat = String(p.categoria || "").toLowerCase().trim();
+          const catNombre = String(categoriaSeleccionada.nombre || "").toLowerCase().trim();
+          const catId = String(categoriaSeleccionada.id || "").toLowerCase().trim();
+          return prodCat === catNombre || prodCat === catId;
+        })
       : all;
 
     const start = page * LIMIT;
@@ -822,55 +956,81 @@ async function cargar() {
   }
 }
 
-// Event Listeners de Paginación
-document.getElementById("prev").onclick = () => {
-  if (page > 0) {
-    page--;
+// Event Listeners de Paginación (solo si existen los elementos)
+if (document.getElementById("prev")) {
+  document.getElementById("prev").onclick = () => {
+    if (page > 0) {
+      page--;
+      cargar();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+}
+
+if (document.getElementById("next")) {
+  document.getElementById("next").onclick = () => {
+    page++;
     cargar();
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-};
+  };
+}
 
-document.getElementById("next").onclick = () => {
-  page++;
-  cargar();
-  window.scrollTo({ top: 0, behavior: "smooth" });
-};
-
-categoriasBtn.addEventListener("click", () => {
-  irInicioCategorias();
-});
+if (categoriasBtn) {
+  categoriasBtn.addEventListener("click", () => {
+    irInicioCategorias();
+  });
+}
 
 // ═══════════════════════════════════════════════════════════════════════
-// INICIALIZACIÓN
+// INICIALIZACIÓN (SOLO EN INDEX.HTML)
 // ═══════════════════════════════════════════════════════════════════════
 
-(async () => {
-  try {
-    console.log("🚀 Inicializando aplicación...");
+if (productosDiv) { // Solo inicializar si estamos en index.html
+  (async () => {
+    try {
+      console.log("🚀 Inicializando aplicación...");
 
-    // Cargar y renderizar carrito inicial
-    renderCarrito();
-    actualizarBadgeCarrito();
+      // Cargar y renderizar carrito inicial
+      renderCarrito();
+      actualizarBadgeCarrito();
 
-    // Obtener productos
-    const productos = await fetchProductos();
+      // Renderizar categorías iniciales (rápido desde BD si existe)
+      let categoriasDb = await fetchCategorias();
+      if (categoriasDb && categoriasDb.length > 0) {
+        renderCategorias(categoriasDb);
+        mostrarCategorias();
+      }
 
-    if (productos.length === 0) {
-      toast.error("No se pudieron cargar los productos");
-      return;
+      // Obtener productos (para catálogo y conteos)
+      const productos = await fetchProductos();
+
+      if (productos.length === 0) {
+        toast.error("No se pudieron cargar los productos");
+        return;
+      }
+
+      // Si no hay categorías en BD, generar desde productos
+      if (!categoriasDb || categoriasDb.length === 0) {
+        renderCategorias(productos);
+        mostrarCategorias();
+      } else {
+        // Actualizar conteos con productos cargados
+        const categoriasConConteo = actualizarConteoCategorias(productos, categoriasDb);
+        renderCategorias(categoriasConConteo);
+      }
+
+      console.log("✅ Aplicación lista");
+    } catch (error) {
+      console.error("❌ Error en inicialización:", error);
+      toast.error("Error iniciando la aplicación");
     }
-
-    // Renderizar categorías iniciales
-    renderCategorias(productos);
-    mostrarCategorias();
-
-    console.log("✅ Aplicación lista");
-  } catch (error) {
-    console.error("❌ Error en inicialización:", error);
-    toast.error("Error iniciando la aplicación");
-  }
-})();
+  })();
+} else {
+  console.log("📱 Inicializando solo carrito (página no index.html)");
+  // En otras páginas, solo inicializar el carrito
+  renderCarrito();
+  actualizarBadgeCarrito();
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // SERVICIOS PRÁCTICOS
@@ -904,3 +1064,51 @@ window.limpiarCarrito = () => {
 // Debugging
 window.verCarrito = () => console.table(carrito);
 window.verCache = () => console.log("Cache:", cache);
+
+// Debug iconos de categorías
+window.debugIconos = async () => {
+  try {
+    console.log("🔍 Debug de iconos de categorías");
+    const categorias = await fetchCategorias();
+    if (categorias && categorias.length > 0) {
+      categorias.forEach(cat => {
+        const iconoCalculado = getIconoCategoria(cat.id || cat.nombre, categorias);
+        console.log(`${cat.nombre}: BD='${cat.icono}' → Mostrado='${iconoCalculado}'`);
+      });
+    } else {
+      console.log("No hay categorías en BD");
+    }
+  } catch (error) {
+    console.error("Error en debugIconos:", error);
+  }
+};
+
+// Debug para categorías
+window.debugCategorias = async () => {
+  console.log("🔍 Debug de categorías:");
+  console.log("Categoría seleccionada:", categoriaSeleccionada);
+  
+  try {
+    const productos = await fetchProductos();
+    console.log("Total productos:", productos.length);
+    
+    if (categoriaSeleccionada) {
+      const filtrados = productos.filter(p => {
+        const prodCat = String(p.categoria || "").toLowerCase().trim();
+        const catNombre = String(categoriaSeleccionada.nombre || "").toLowerCase().trim();
+        const catId = String(categoriaSeleccionada.id || "").toLowerCase().trim();
+        const match = prodCat === catNombre || prodCat === catId;
+        if (match) console.log("✅ Producto encontrado:", p.nombre, "- categoría:", p.categoria);
+        return match;
+      });
+      console.log("Productos filtrados:", filtrados.length);
+    } else {
+      console.log("No hay categoría seleccionada");
+    }
+  } catch (error) {
+    console.error("Error en debug:", error);
+  }
+};
+
+// Cerrar el bloque condicional para index.html
+}

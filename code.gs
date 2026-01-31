@@ -7,7 +7,7 @@ const CLOUDFLARE_IMAGE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.worke
 const DRIVE_IMAGES_FOLDER_ID = "1EDyKQ1ISi1UyieKQ01JgywP-whGF5A9U";
 
 const SHEET_PRODUCTOS = "Productos";
-const SHEET_CATEGORIAS = "Categorias";
+const SHEET_CATEGORIAS = "categorias";
 const SHEET_PEDIDOS = "Pedidos";
 const CACHE_MINUTES = 10;
 
@@ -16,6 +16,8 @@ const CACHE_MINUTES = 10;
  *********************************/
 function doGet(e) {
   try {
+    Logger.log("doGet llamado con parámetros: " + JSON.stringify(e.parameter));
+
     // Manejo de proxy de imágenes
     if (e.parameter.imageId) {
       return servirImagen(e.parameter.imageId);
@@ -26,9 +28,20 @@ function doGet(e) {
     const action = e.parameter.action;
     if (!action) throw "Acción no especificada";
 
+    Logger.log("Procesando acción: " + action);
+
     switch (action) {
       case "getCategorias":
+        Logger.log("Ejecutando getCategorias");
         return jsonOutput(getCategorias());
+
+      case "getCategoriasAdmin":
+        Logger.log("Ejecutando getCategoriasAdmin");
+        return jsonOutput(getCategoriasAdmin());
+
+      case "testCategorias":
+        Logger.log("Ejecutando test de categorías");
+        return jsonOutput(testCategorias());
 
       case "getProductos":
         return jsonOutput(getProductos(e.parameter));
@@ -37,9 +50,10 @@ function doGet(e) {
         return jsonOutput(getProducto(e.parameter.id));
 
       default:
-        throw "Acción GET no válida";
+        throw "Acción GET no válida: " + action;
     }
   } catch (err) {
+    Logger.log("Error en doGet: " + err);
     return errorOutput(err);
   }
 }
@@ -66,19 +80,59 @@ function doPost(e) {
       throw new Error("API KEY inválida");
     }
 
+    if (data.action === "upsertCategoria") {
+      return jsonOutput(upsertCategoria(data.categoria));
+    }
+
+    if (data.action === "deleteCategoria") {
+      return jsonOutput(deleteCategoria(data.id));
+    }
+
+    // Fallback: crear pedido (compatibilidad)
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sheet = ss.getSheetByName("pedidos");
 
+    // Obtener el sheet y calcular el próximo número de pedido
+    const lastRow = sheet.getLastRow();
+    let nextNum = 1;
+    if (lastRow > 1) {
+      const lastNum = sheet.getRange(lastRow, 1).getValue();
+      if (!isNaN(Number(lastNum))) nextNum = Number(lastNum) + 1;
+    }
+
     sheet.appendRow([
+      nextNum,
       new Date(),
       data.cliente.nombre,
       data.cliente.ciudad,
-      data.total,
-      JSON.stringify(data.items)
+      data.total
     ]);
 
+    // Guardar en hoja de detalle con nueva estructura
+    const ss2 = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const detalleSheet = ss2.getSheetByName("pedido_detalle");
+    if (detalleSheet) {
+      let detalleLastRow = detalleSheet.getLastRow();
+      let nextDetalleId = detalleLastRow;
+      data.items.forEach((item, idx) => {
+        nextDetalleId++;
+        var total_venta = Number(item.precio) * Number(item.cantidad);
+        var costo_venta = Math.round(total_venta * 0.7 * 100) / 100; // 70% de total_venta, redondeado a 2 decimales
+        detalleSheet.appendRow([
+          nextDetalleId, // id (autonumérico por fila)
+          nextNum, // id_pedido (consecutivo del pedido)
+          item.id || "", // id_producto
+          item.nombre,
+          item.cantidad,
+          item.precio,
+          total_venta,
+          costo_venta
+        ]);
+      });
+    }
+
     return ContentService
-      .createTextOutput(JSON.stringify({ ok: true }))
+      .createTextOutput(JSON.stringify({ ok: true, pedido_id: nextNum }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
@@ -114,17 +168,190 @@ function getSpreadsheet() {
  * CATEGORÍAS
  *********************************/
 function getCategorias() {
-  const ss = getSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_CATEGORIAS);
-  const data = sheet.getDataRange().getValues();
-  const headers = data.shift();
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_CATEGORIAS);
 
-  return data
-    .filter(r => r[headers.indexOf("estado")] === "activo")
-    .map(r => ({
-      id: r[headers.indexOf("id")],
-      nombre: r[headers.indexOf("nombre")]
+    if (!sheet) {
+      Logger.log("⚠️ Hoja 'Categorias' no encontrada");
+      return { success: false, items: [], error: "Hoja de categorías no encontrada" };
+    }
+
+    const data = sheet.getDataRange().getValues();
+
+    if (data.length <= 1) {
+      Logger.log("⚠️ Hoja de categorías vacía");
+      return { success: true, items: [] };
+    }
+
+    const headers = data.shift();
+
+    const idxId = headers.indexOf("id");
+    const idxNombre = headers.indexOf("nombre");
+    const idxIcono = headers.indexOf("icono");
+    const idxOrden = headers.indexOf("orden");
+    const idxEstado = headers.indexOf("estado");
+
+    if (idxId === -1 || idxNombre === -1) {
+      Logger.log("⚠️ Columnas requeridas no encontradas");
+      return { success: false, items: [], error: "Columnas requeridas no encontradas" };
+    }
+
+    const items = data
+      .filter(r => String(r[idxEstado] || "").toLowerCase().trim() === "activo")
+      .map(r => ({
+        id: r[idxId],
+        nombre: r[idxNombre],
+        icono: r[idxIcono] || "",
+        orden: Number(r[idxOrden] || 0),
+        estado: r[idxEstado] || "activo"
+      }));
+
+    Logger.log(`✓ ${items.length} categorías activas cargadas`);
+    return { success: true, items: items };
+  } catch (error) {
+    Logger.log("❌ Error en getCategorias: " + error.toString());
+    return { success: false, items: [], error: error.toString() };
+  }
+}
+
+function getCategoriasAdmin() {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_CATEGORIAS);
+
+    if (!sheet) {
+      Logger.log("⚠️ Hoja 'Categorias' no encontrada");
+      return { success: false, items: [], error: "Hoja de categorías no encontrada" };
+    }
+
+    const data = sheet.getDataRange().getValues();
+
+    if (data.length <= 1) {
+      Logger.log("⚠️ Hoja de categorías vacía");
+      return { success: true, items: [] };
+    }
+
+    const headers = data.shift();
+
+    const idxId = headers.indexOf("id");
+    const idxNombre = headers.indexOf("nombre");
+    const idxIcono = headers.indexOf("icono");
+    const idxOrden = headers.indexOf("orden");
+    const idxEstado = headers.indexOf("estado");
+
+    if (idxId === -1 || idxNombre === -1) {
+      Logger.log("⚠️ Columnas requeridas no encontradas");
+      return { success: false, items: [], error: "Columnas requeridas no encontradas" };
+    }
+
+    const items = data.map(r => ({
+      id: r[idxId],
+      nombre: r[idxNombre],
+      icono: r[idxIcono] || "",
+      orden: Number(r[idxOrden] || 0),
+      estado: r[idxEstado] || "activo"
     }));
+
+    Logger.log(`✓ ${items.length} categorías cargadas para admin`);
+    return { success: true, items: items };
+  } catch (error) {
+    Logger.log("❌ Error en getCategoriasAdmin: " + error.toString());
+    return { success: false, items: [], error: error.toString() };
+  }
+}
+
+function upsertCategoria(categoria) {
+  try {
+    if (!categoria || !categoria.id || !categoria.nombre) {
+      throw new Error("Categoría inválida: faltan campos requeridos");
+    }
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_CATEGORIAS);
+
+    if (!sheet) {
+      throw new Error("Hoja de categorías no encontrada");
+    }
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data.shift();
+
+    const idxId = headers.indexOf("id");
+    const idxNombre = headers.indexOf("nombre");
+    const idxIcono = headers.indexOf("icono");
+    const idxOrden = headers.indexOf("orden");
+    const idxEstado = headers.indexOf("estado");
+
+    if (idxId === -1 || idxNombre === -1) {
+      throw new Error("Columnas requeridas no encontradas en la hoja");
+    }
+
+    const idBuscado = String(categoria.id).toLowerCase().trim();
+
+    let rowIndex = -1;
+    for (let i = 0; i < data.length; i++) {
+      const idRow = String(data[i][idxId] || "").toLowerCase().trim();
+      if (idRow === idBuscado) {
+        rowIndex = i + 2; // +2 por encabezado y 1-indexed
+        break;
+      }
+    }
+
+    const rowValues = Array(headers.length).fill("");
+    rowValues[idxId] = categoria.id;
+    rowValues[idxNombre] = categoria.nombre;
+    rowValues[idxIcono] = categoria.icono || "";
+    rowValues[idxOrden] = Number(categoria.orden || 0);
+    rowValues[idxEstado] = categoria.estado || "activo";
+
+    if (rowIndex > 0) {
+      sheet.getRange(rowIndex, 1, 1, headers.length).setValues([rowValues]);
+      Logger.log(`✓ Categoría actualizada: ${categoria.nombre}`);
+      return { ok: true, updated: true, message: "Categoría actualizada correctamente" };
+    }
+
+    sheet.appendRow(rowValues);
+    Logger.log(`✓ Categoría creada: ${categoria.nombre}`);
+    return { ok: true, created: true, message: "Categoría creada correctamente" };
+  } catch (error) {
+    Logger.log("❌ Error en upsertCategoria: " + error.toString());
+    return { ok: false, error: error.toString() };
+  }
+}
+
+function deleteCategoria(id) {
+  try {
+    if (!id) throw new Error("ID inválido");
+
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_CATEGORIAS);
+
+    if (!sheet) {
+      throw new Error("Hoja de categorías no encontrada");
+    }
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data.shift();
+
+    const idxId = headers.indexOf("id");
+    const idBuscado = String(id).toLowerCase().trim();
+
+    for (let i = 0; i < data.length; i++) {
+      const idRow = String(data[i][idxId] || "").toLowerCase().trim();
+      if (idRow === idBuscado) {
+        sheet.deleteRow(i + 2);
+        Logger.log(`✓ Categoría eliminada: ${id}`);
+        return { ok: true, deleted: true, message: "Categoría eliminada correctamente" };
+      }
+    }
+
+    Logger.log(`⚠️ Categoría no encontrada: ${id}`);
+    return { ok: false, error: "Categoría no encontrada" };
+  } catch (error) {
+    Logger.log("❌ Error en deleteCategoria: " + error.toString());
+    return { ok: false, error: error.toString() };
+  }
 }
 
 /*********************************
@@ -342,23 +569,6 @@ function errorOutput(err) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function doPost(e) {
-  try {
-    const body = JSON.parse(e.postData.contents);
-
-    if (body.key !== API_KEY) throw "API KEY inválida";
-
-    if (body.action === "crearPedido") {
-      return json(crearPedido(body));
-    }
-
-    throw "Acción no válida";
-
-  } catch (err) {
-    return json({ success: false, error: err });
-  }
-}
-
 function generarPedidoId(sheet) {
   const lastRow = sheet.getLastRow();
 
@@ -484,4 +694,112 @@ function probarSistema() {
   }
 
   return resultados;
+}
+
+/*********************************
+ * PRUEBA DE CATEGORÍAS
+ *********************************/
+
+function testCategorias() {
+  Logger.log("🧪 Iniciando prueba de categorías...");
+
+  try {
+    // 1. Verificar que la hoja existe
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_CATEGORIAS);
+
+    if (!sheet) {
+      Logger.log("❌ ERROR: Hoja '" + SHEET_CATEGORIAS + "' no encontrada");
+      Logger.log("📝 Hojas disponibles: " + ss.getSheets().map(s => s.getName()).join(", "));
+      return {
+        ok: false,
+        error: "Hoja no encontrada",
+        hojas_disponibles: ss.getSheets().map(s => s.getName())
+      };
+    }
+
+    Logger.log("✅ Hoja encontrada: " + SHEET_CATEGORIAS);
+
+    // 2. Verificar estructura de datos
+    const data = sheet.getDataRange().getValues();
+    Logger.log("📊 Datos crudos obtenidos: " + data.length + " filas");
+
+    if (data.length === 0) {
+      Logger.log("⚠️ La hoja está vacía");
+      return {
+        ok: false,
+        error: "Hoja vacía",
+        filas: 0
+      };
+    }
+
+    // 3. Verificar encabezados
+    const headers = data[0];
+    Logger.log("📋 Encabezados encontrados: " + headers.join(", "));
+
+    const requiredHeaders = ["id", "nombre", "icono", "orden", "estado"];
+    const missingHeaders = requiredHeaders.filter(h => headers.indexOf(h) === -1);
+
+    if (missingHeaders.length > 0) {
+      Logger.log("❌ Faltan columnas requeridas: " + missingHeaders.join(", "));
+      return {
+        ok: false,
+        error: "Columnas faltantes",
+        columnas_faltantes: missingHeaders,
+        columnas_encontradas: headers
+      };
+    }
+
+    Logger.log("✅ Todas las columnas requeridas están presentes");
+
+    // 4. Verificar datos de ejemplo
+    const sampleData = data.slice(1, 4); // Primeras 3 filas de datos
+    Logger.log("📝 Datos de ejemplo:");
+    sampleData.forEach((row, i) => {
+      Logger.log(`  Fila ${i+1}: [${row.join(" | ")}]`);
+    });
+
+    // 5. Probar función getCategorias
+    Logger.log("🔄 Probando getCategorias()...");
+    const resultadoGet = getCategorias();
+    Logger.log("Resultado getCategorias: " + JSON.stringify(resultadoGet, null, 2));
+
+    // 6. Probar función getCategoriasAdmin
+    Logger.log("🔄 Probando getCategoriasAdmin()...");
+    const resultadoAdmin = getCategoriasAdmin();
+    Logger.log("Resultado getCategoriasAdmin: " + JSON.stringify(resultadoAdmin, null, 2));
+
+    // 7. Verificar categorías activas
+    const categoriasActivas = resultadoGet.items ? resultadoGet.items.filter(c => c.estado === "activo") : [];
+    Logger.log("📊 Categorías activas: " + categoriasActivas.length);
+
+    categoriasActivas.forEach(cat => {
+      Logger.log(`  - ${cat.nombre} (${cat.id}): icono="${cat.icono}", orden=${cat.orden}`);
+    });
+
+    // 8. Resumen final
+    const resumen = {
+      ok: resultadoGet.success && resultadoAdmin.success,
+      hoja: SHEET_CATEGORIAS,
+      filas_totales: data.length,
+      filas_datos: data.length - 1,
+      columnas: headers.length,
+      categorias_activas: categoriasActivas.length,
+      categorias_totales: resultadoAdmin.items ? resultadoAdmin.items.length : 0,
+      timestamp: new Date().toISOString()
+    };
+
+    Logger.log("🎉 Prueba completada exitosamente!");
+    Logger.log("📋 Resumen: " + JSON.stringify(resumen, null, 2));
+
+    return resumen;
+
+  } catch (error) {
+    Logger.log("❌ ERROR en testCategorias: " + error.toString());
+    return {
+      ok: false,
+      error: error.toString(),
+      timestamp: new Date().toISOString()
+    };
+  }
 }

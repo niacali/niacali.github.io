@@ -3,6 +3,36 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 // ═══════════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN GLOBAL PARA CARRITO
+// ═══════════════════════════════════════════════════════════════════════
+
+if (typeof API_URL === 'undefined') {
+  window.API_URL = "https://script.google.com/macros/s/AKfycbw_QrC9F3DBGzwNFRjby2wa6iFNuGDUTkIQHBWi4VVpwolR6KhF7OlCyPYBzqhDoekoyA/exec";
+}
+if (typeof API_KEY === 'undefined') {
+  window.API_KEY = "TIENDA_API_2026";
+}
+
+// Asegurar toast global
+if (typeof toast === 'undefined') {
+  window.toast = {
+    info: msg => alert(msg),
+    error: msg => alert("Error: " + msg),
+    exito: msg => alert("✔ " + msg),
+    advertencia: msg => alert("⚠ " + msg)
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CARRITO GLOBAL PARA TODAS LAS PÁGINAS
+// ═══════════════════════════════════════════════════════════════════════
+
+if (typeof window.carrito === 'undefined') {
+  window.carrito = JSON.parse(localStorage.getItem("carrito")) || [];
+}
+const carrito = window.carrito;
+
+// ═══════════════════════════════════════════════════════════════════════
 // INICIALIZACIÓN
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -191,7 +221,7 @@ async function finalizarPedidoCarritoPage() {
       if (toast) toast.exito(mensaje);
       
       // Limpiar carrito
-      carrito = [];
+      window.carrito.length = 0;
       guardarCarrito();
       
       // Limpiar formulario

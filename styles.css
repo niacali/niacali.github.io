@@ -1,3 +1,51 @@
+/* Tabla de administración de categorías */
+.admin-table-categorias {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 2rem;
+}
+.admin-table-categorias th, .admin-table-categorias td {
+  padding: 1rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 1rem;
+}
+.admin-table-categorias th {
+  background: var(--surface-dark);
+  color: var(--text-secondary);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid var(--border);
+}
+.admin-table-categorias tr:last-child td {
+  border-bottom: none;
+}
+.admin-table-categorias .estado-label {
+  display: inline-block;
+  padding: 0.3em 1em;
+  border-radius: 12px;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+.admin-table-categorias .estado-activo {
+  background: #e0fbe0;
+  color: #1b5e20;
+}
+.admin-table-categorias .estado-inactivo, .admin-table-categorias .estado-desactivado {
+  background: #fbe0e0;
+  color: #b71c1c;
+}
+.admin-table-categorias .btn {
+  margin-right: 0.3em;
+  margin-bottom: 0.2em;
+}
+.admin-table-categorias .btn:last-child {
+  margin-right: 0;
+}
 /* ═══════════════════════════════════════════════════════════════════════
    ESTILOS MODERNOS - 2026
    Variables CSS, Gradientes, Animaciones, Neumorphism
@@ -1943,7 +1991,8 @@ select:focus-visible {
 }
 
 .pedidos-lista,
-.productos-admin-lista {
+.productos-admin-lista,
+.categorias-admin-lista {
   display: grid;
   gap: 1.5rem;
 }
@@ -2093,6 +2142,52 @@ select:focus-visible {
   font-size: 0.9rem;
 }
 
+.categoria-admin-card {
+  display: grid;
+  grid-template-columns: 70px 1fr auto;
+  gap: 1.5rem;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  transition: box-shadow var(--transition-base);
+}
+
+.categoria-admin-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.categoria-admin-icono {
+  width: 56px;
+  height: 56px;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-dark);
+}
+
+.categoria-admin-icono .material-symbols-outlined {
+  font-size: 2rem;
+  color: var(--primary);
+}
+
+.categoria-admin-info h3 {
+  margin: 0 0 0.25rem;
+}
+
+.categoria-admin-info p {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.categoria-admin-acciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .categoria,
 .stock {
   color: var(--text-secondary);
@@ -2104,6 +2199,60 @@ select:focus-visible {
 }
 
 .producto-admin-acciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/* CATEGORÍAS ADMIN */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.categoria-admin-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.5rem;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  transition: box-shadow var(--transition-base);
+}
+
+.categoria-admin-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.categoria-admin-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.categoria-admin-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  font-size: 1.5rem;
+}
+
+.categoria-admin-info h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.categoria-admin-info p {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.categoria-admin-actions {
   display: flex;
   gap: 0.5rem;
 }
