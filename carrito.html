@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tu Carrito - NIA Cali</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <!-- SIDEBAR NAVEGACION -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2 class="sidebar-logo">🛍️ NIA Cali</h2>
+      <button class="sidebar-toggle" aria-label="Cerrar menú">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <ul class="sidebar-menu">
+      <li><a href="index.html" class="sidebar-link"><span class="material-symbols-outlined">home</span> Inicio</a></li>
+      <li><a href="carrito.html" class="sidebar-link active"><span class="material-symbols-outlined">shopping_cart</span> Mi Carrito</a></li>
+      <li><a href="#" onclick="abrirAdmin(event)" class="sidebar-link"><span class="material-symbols-outlined">admin_panel_settings</span> Administración</a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <p class="sidebar-version">v2.0 | 2026</p>
+    </div>
+  </nav>
+
+  <!-- OVERLAY -->
+  <div class="sidebar-overlay"></div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-content">
+      <button class="btn-menu" id="menuBtn" aria-label="Abrir menú">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+      <h1 class="header-title">🛍️ NIA Cali - Tu Carrito</h1>
+      <div class="header-spacer"></div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <div class="carrito-page">
+      <!-- CARRITO ITEMS -->
+      <section class="carrito-section">
+        <h2 class="section-title">Tu Carrito de Compras</h2>
+        
+        <div id="carritoPageItems" class="carrito-page-items">
+          <!-- Los items se cargarán aquí -->
+        </div>
+
+        <!-- CARRITO VACÍO -->
+        <div id="carritoPageVacio" class="carrito-page-vacio" style="display: none;">
+          <div class="empty-illustration">
+            <span class="material-symbols-outlined">shopping_cart</span>
+          </div>
+          <h3>Tu carrito está vacío</h3>
+          <p>¡Explora nuestros productos y comienza a comprar!</p>
+          <a href="index.html" class="btn btn-primary">Ir al Catálogo</a>
+        </div>
+      </section>
+
+      <!-- RESUMEN DEL PEDIDO -->
+      <aside class="carrito-resumen">
+        <div class="resumen-card">
+          <h3>Resumen de tu Pedido</h3>
+          
+          <div class="resumen-row">
+            <span>Subtotal:</span>
+            <strong id="resumenSubtotal">$ 0</strong>
+          </div>
+          
+          <div class="resumen-row">
+            <span>Items:</span>
+            <strong id="resumenItems">0</strong>
+          </div>
+
+          <div class="resumen-divider"></div>
+
+          <div class="resumen-row total">
+            <span>Total:</span>
+            <strong id="resumenTotal">$ 0</strong>
+          </div>
+
+          <form id="formularioPedido" class="formulario-pedido">
+            <input 
+              id="inputNombre" 
+              placeholder="Tu nombre completo" 
+              type="text"
+              required
+              aria-label="Nombre del cliente"
+            >
+            <input 
+              id="inputCiudad" 
+              placeholder="Tu ciudad" 
+              type="text"
+              required
+              aria-label="Ciudad del cliente"
+            >
+            <input 
+              id="inputTelefono" 
+              placeholder="Tu teléfono (opcional)" 
+              type="tel"
+              aria-label="Teléfono del cliente"
+            >
+            <textarea 
+              id="inputNotas" 
+              placeholder="Notas adicionales (opcional)"
+              rows="3"
+              aria-label="Notas del pedido"
+            ></textarea>
+            <button type="button" onclick="finalizarPedidoCarritoPage()" class="btn btn-primary btn-full">
+              ✓ Finalizar Pedido
+            </button>
+          </form>
+
+          <button onclick="limpiarCarritoPage()" class="btn btn-outline btn-full">
+            Vaciar Carrito
+          </button>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- NOTIFICACIONES -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- SCRIPTS -->
+  <script src="app.js"></script>
+  <script src="sidebar.js"></script>
+  <script src="carrito.js"></script>
+</body>
+</html>

@@ -9,9 +9,35 @@
 </head>
 
 <body>
+  <!-- SIDEBAR NAVEGACION -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2 class="sidebar-logo">🛍️ NIA Cali</h2>
+      <button class="sidebar-toggle" aria-label="Cerrar menú">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <ul class="sidebar-menu">
+      <li><a href="index.html" class="sidebar-link active"><span class="material-symbols-outlined">home</span> Inicio</a></li>
+      <li><a href="carrito.html" class="sidebar-link"><span class="material-symbols-outlined">shopping_cart</span> Mi Carrito</a></li>
+      <li><a href="admin.html" class="sidebar-link"><span class="material-symbols-outlined">admin_panel_settings</span> Administración</a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <p class="sidebar-version">v2.0 | 2026</p>
+    </div>
+  </nav>
+
+  <!-- OVERLAY -->
+  <div class="sidebar-overlay"></div>
+
   <!-- HEADER MEJORADO -->
   <header class="header">
     <div class="header-content">
+      <button class="btn-menu" id="menuBtn" aria-label="Abrir menú">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
       <h1 class="header-title">🛍️ NIA Cali</h1>
       <div class="header-actions">
         <button id="categoriasBtn" class="btn-header" title="Ver categorías">
@@ -117,5 +143,6 @@
 
   <!-- SCRIPTS -->
   <script src="app.js"></script>
+  <script src="sidebar.js"></script>
 </body>
 </html>

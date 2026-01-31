@@ -346,7 +346,9 @@ function agregarAlCarrito(producto, cantidad) {
       id: productoId,
       nombre: producto.nombre,
       precio: producto.precio,
-      cantidad: cantidad
+      cantidad: cantidad,
+      categoria: producto.categoria || "Sin categoría",
+      imagen: producto.imagen || "https://via.placeholder.com/100?text=Sin+Imagen"
     });
     toast.exito(`✓ ${producto.nombre} añadido`);
   }
@@ -715,6 +717,12 @@ function render(productos) {
     const proxyUrl = convertirDriveUrlAProxy(p.imagen);
     const fallbackSVG = generarFallbackSVG(p.nombre, p.id);
 
+    // Crear objeto producto con imagen procesada
+    const productoConProxy = {
+      ...p,
+      imagen: proxyUrl || p.imagen || fallbackSVG
+    };
+
     const card = document.createElement("div");
     card.className = "card";
 
@@ -749,7 +757,7 @@ function render(productos) {
             <button onclick="cambiarCantidadCard(${p.id}, 1)" title="Aumentar cantidad">+</button>
           </div>
           <button class="btn-compact"
-            onclick='agregarAlCarrito(${JSON.stringify(p)}, document.getElementById("qty-${p.id}").value)'
+            onclick='agregarAlCarrito(${JSON.stringify(productoConProxy)}, document.getElementById("qty-${p.id}").value)'
             title="Agregar al carrito">
             🛒
           </button>
@@ -761,7 +769,7 @@ function render(productos) {
     const img = card.querySelector(".card-imagen");
     const cta = card.querySelector(".card-imagen-cta");
 
-    wrapper.dataset.producto = JSON.stringify(p);
+    wrapper.dataset.producto = JSON.stringify(productoConProxy);
 
     const abrirDesdeCard = () => {
       const producto = JSON.parse(wrapper.dataset.producto);

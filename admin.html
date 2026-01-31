@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administración - NIA Cali</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <!-- SIDEBAR NAVEGACION -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2 class="sidebar-logo">🛍️ NIA Cali</h2>
+      <button class="sidebar-toggle" aria-label="Cerrar menú">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <ul class="sidebar-menu">
+      <li><a href="index.html" class="sidebar-link"><span class="material-symbols-outlined">home</span> Inicio</a></li>
+      <li><a href="carrito.html" class="sidebar-link"><span class="material-symbols-outlined">shopping_cart</span> Mi Carrito</a></li>
+      <li><a href="admin.html" class="sidebar-link active"><span class="material-symbols-outlined">admin_panel_settings</span> Administración</a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <p class="sidebar-version">v2.0 | 2026</p>
+    </div>
+  </nav>
+
+  <!-- OVERLAY -->
+  <div class="sidebar-overlay"></div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-content">
+      <button class="btn-menu" id="menuBtn" aria-label="Abrir menú">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+      <h1 class="header-title">⚙️ Panel de Administración</h1>
+      <button id="btnLogout" class="btn-header" style="display: none;" title="Cerrar sesión">
+        <span class="material-symbols-outlined">logout</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <!-- LOGIN PANEL -->
+    <div id="loginPanel" class="admin-login">
+      <div class="login-container">
+        <div class="login-card">
+          <h2>🔐 Acceso de Administración</h2>
+          <p>Ingresa tus credenciales para acceder al panel</p>
+
+          <form id="formLogin" onsubmit="autenticar(event)">
+            <div class="form-group">
+              <label for="loginUsername">Usuario:</label>
+              <input 
+                id="loginUsername" 
+                type="text" 
+                placeholder="admin@tienda.com"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="loginPassword">Contraseña:</label>
+              <input 
+                id="loginPassword" 
+                type="password" 
+                placeholder="••••••••"
+                required
+              >
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+              Iniciar Sesión
+            </button>
+          </form>
+
+          <div class="login-help">
+            <p><strong>Demo:</strong> admin@tienda.com / admin123</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN PANEL (oculto hasta login) -->
+    <div id="adminPanel" class="admin-panel" style="display: none;">
+      <!-- TAB NAVIGATION -->
+      <div class="admin-tabs">
+        <button class="admin-tab-btn active" data-tab="pedidos">
+          <span class="material-symbols-outlined">receipt_long</span> Pedidos
+        </button>
+        <button class="admin-tab-btn" data-tab="productos">
+          <span class="material-symbols-outlined">inventory_2</span> Productos
+        </button>
+        <button class="admin-tab-btn" data-tab="exportar">
+          <span class="material-symbols-outlined">download</span> Exportar
+        </button>
+      </div>
+
+      <!-- TAB: PEDIDOS -->
+      <section id="tab-pedidos" class="admin-tab-content active">
+        <div class="tab-header">
+          <h2>Gestión de Pedidos</h2>
+          <div class="tab-actions">
+            <button onclick="refrescarPedidos()" class="btn btn-small">
+              🔄 Refrescar
+            </button>
+          </div>
+        </div>
+
+        <div id="listaPedidos" class="pedidos-lista">
+          <!-- Los pedidos se cargarán aquí -->
+        </div>
+
+        <div id="pedidosVacio" class="empty-state" style="display: none;">
+          <span class="material-symbols-outlined">inbox</span>
+          <p>No hay pedidos</p>
+        </div>
+      </section>
+
+      <!-- TAB: PRODUCTOS -->
+      <section id="tab-productos" class="admin-tab-content">
+        <div class="tab-header">
+          <h2>Gestión de Productos</h2>
+          <div class="tab-actions">
+            <button onclick="abrirFormProducto()" class="btn btn-primary btn-small">
+              ➕ Nuevo Producto
+            </button>
+          </div>
+        </div>
+
+        <div id="listaProductosAdmin" class="productos-admin-lista">
+          <!-- Los productos se cargarán aquí -->
+        </div>
+
+        <div id="productosVacio" class="empty-state" style="display: none;">
+          <span class="material-symbols-outlined">shopping_bag</span>
+          <p>No hay productos</p>
+        </div>
+      </section>
+
+      <!-- TAB: EXPORTAR -->
+      <section id="tab-exportar" class="admin-tab-content">
+        <div class="tab-header">
+          <h2>Exportar Datos</h2>
+        </div>
+
+        <div class="export-opciones">
+          <div class="export-card">
+            <h3>Exportar Pedidos</h3>
+            <p>Descarga todos los pedidos en formato CSV o JSON</p>
+            <div class="export-botones">
+              <button onclick="exportarPedidosCSV()" class="btn btn-primary">
+                📥 Descargar CSV
+              </button>
+              <button onclick="exportarPedidosJSON()" class="btn btn-outline">
+                📥 Descargar JSON
+              </button>
+            </div>
+          </div>
+
+          <div class="export-card">
+            <h3>Exportar Productos</h3>
+            <p>Descarga el catálogo de productos</p>
+            <div class="export-botones">
+              <button onclick="exportarProductosCSV()" class="btn btn-primary">
+                📥 Descargar CSV
+              </button>
+              <button onclick="exportarProductosJSON()" class="btn btn-outline">
+                📥 Descargar JSON
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- MODAL: EDITAR PEDIDO -->
+  <div id="modalEditarPedido" class="modal-admin" style="display: none;">
+    <div class="modal-admin-content">
+      <button class="modal-close" onclick="cerrarModalEditarPedido()">✕</button>
+      <h2>Editar Estado del Pedido</h2>
+
+      <div class="modal-body">
+        <div class="pedido-info">
+          <p><strong>ID Pedido:</strong> <span id="pedidoId"></span></p>
+          <p><strong>Cliente:</strong> <span id="pedidoCliente"></span></p>
+          <p><strong>Fecha:</strong> <span id="pedidoFecha"></span></p>
+          <p><strong>Total:</strong> <span id="pedidoTotal"></span></p>
+        </div>
+
+        <div class="form-group">
+          <label for="selectEstado">Estado del Pedido:</label>
+          <select id="selectEstado" class="form-select">
+            <option value="pendiente">Pendiente</option>
+            <option value="procesando">Procesando</option>
+            <option value="enviado">Enviado</option>
+            <option value="entregado">Entregado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </div>
+
+        <textarea 
+          id="notasPedido" 
+          placeholder="Notas internas del pedido"
+          rows="4"
+          class="form-textarea"
+        ></textarea>
+
+        <div class="modal-actions">
+          <button onclick="guardarCambioPedido()" class="btn btn-primary">
+            Guardar Cambios
+          </button>
+          <button onclick="cerrarModalEditarPedido()" class="btn btn-outline">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDITAR PRODUCTO -->
+  <div id="modalEditarProducto" class="modal-admin" style="display: none;">
+    <div class="modal-admin-content">
+      <button class="modal-close" onclick="cerrarModalEditarProducto()">✕</button>
+      <h2>Editar Producto</h2>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="editProductoNombre">Nombre:</label>
+          <input id="editProductoNombre" type="text" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="editProductoPrecio">Precio:</label>
+          <input id="editProductoPrecio" type="number" step="0.01" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="editProductoCategoria">Categoría:</label>
+          <input id="editProductoCategoria" type="text" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="editProductoStock">Stock:</label>
+          <input id="editProductoStock" type="number" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="editProductoStatus">Estado:</label>
+          <select id="editProductoStatus" class="form-select">
+            <option value="activo">Activo</option>
+            <option value="inactivo">Inactivo</option>
+            <option value="descontinuado">Descontinuado</option>
+          </select>
+        </div>
+
+        <div class="modal-actions">
+          <button onclick="guardarCambioProducto()" class="btn btn-primary">
+            Guardar Cambios
+          </button>
+          <button onclick="cerrarModalEditarProducto()" class="btn btn-outline">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICACIONES -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- SCRIPTS -->
+  <script src="app.js"></script>
+  <script src="sidebar.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
