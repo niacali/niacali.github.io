@@ -24,7 +24,6 @@ carrito = carrito.map(item => ({
   ...item,
   id: Number(item.id)
 }));
-let carritoAbierto = JSON.parse(localStorage.getItem("carritoState") ?? "true");
 
 const productosDiv = document.getElementById("productos");
 const pageInfo = document.getElementById("pageInfo");
@@ -34,9 +33,7 @@ const productosSection = document.getElementById("productosSection");
 const paginacion = document.getElementById("paginacion");
 const categoriasBtn = document.getElementById("categoriasBtn");
 const categoriaBreadcrumb = document.getElementById("categoriaBreadcrumb");
-const carritoContainer = document.getElementById("carritoContainer");
 const carritoToggle = document.getElementById("carritoToggle");
-const carritoCloseBtn = document.getElementById("carritoCloseBtn");
 
 // Cache Frontend
 const cache = {
@@ -220,6 +217,22 @@ function mostrarCategorias() {
   categoriaBreadcrumb.textContent = "";
 }
 
+async function irInicioCategorias() {
+  categoria = "";
+  page = 0;
+  mostrarCategorias();
+  try {
+    const productos = await fetchProductos();
+    if (productos.length > 0) {
+      renderCategorias(productos);
+    }
+  } catch (error) {
+    console.error("Error al cargar categorías:", error);
+    toast.error("Error cargando categorías");
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function mostrarProductos() {
   categoriasSection.style.display = "none";
   productosSection.style.display = "block";
@@ -266,50 +279,13 @@ function renderCategorias(productos) {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// GESTIÓN DEL CARRITO COLAPSABLE
-// ═══════════════════════════════════════════════════════════════════════
-
-function toggleCarrito() {
-  carritoAbierto = !carritoAbierto;
-  
-  // Toggle la clase collapsed
-  carritoContainer.classList.toggle("collapsed", !carritoAbierto);
-  
-  // Actualizar clase del botón toggle
-  if (carritoAbierto) {
-    carritoToggle.classList.remove("minimizado");
-    carritoToggle.classList.add("active");
-    carritoToggle.title = "Cerrar carrito";
-  } else {
-    carritoToggle.classList.add("minimizado");
-    carritoToggle.classList.remove("active");
-    carritoToggle.title = "Abrir carrito";
-  }
-  
-  // Guardar estado en localStorage
-  localStorage.setItem("carritoState", JSON.stringify(carritoAbierto));
+// Event Listener del botón de carrito (redirigir a página)
+if (carritoToggle) {
+  carritoToggle.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = "carrito.html";
+  });
 }
-
-// Event Listeners del Carrito
-carritoToggle.addEventListener("click", toggleCarrito);
-carritoCloseBtn.addEventListener("click", toggleCarrito);
-
-// Aplicar estado inicial
-if (!carritoAbierto) {
-  carritoContainer.classList.add("collapsed");
-  carritoToggle.classList.add("minimizado");
-} else {
-  carritoToggle.classList.add("active");
-}
-
-// Cerrar carrito automáticamente si el usuario hace click fuera
-document.addEventListener("click", (e) => {
-  if (carritoAbierto && window.innerWidth < 768) {
-    // En móvil, no cerrar automáticamente
-    return;
-  }
-});
 
 // ═══════════════════════════════════════════════════════════════════════
 // CARRITO - LÓGICA
@@ -396,6 +372,10 @@ function renderCarrito() {
   const cont = document.getElementById("carritoItems");
   const totalDiv = document.getElementById("carritoTotal");
   const vacioDiv = document.getElementById("carritoVacio");
+
+  if (!cont || !totalDiv || !vacioDiv) {
+    return;
+  }
 
   cont.innerHTML = "";
   let total = 0;
@@ -591,10 +571,6 @@ async function enviarPedido() {
       // Restaurar texto del botón
       btn.textContent = btnOriginalText;
       
-      // Cerrar carrito
-      if (carritoAbierto) {
-        toggleCarrito();
-      }
     } else {
       throw new Error(data.error || data.mensaje || "Error al crear pedido");
     }
@@ -862,7 +838,7 @@ document.getElementById("next").onclick = () => {
 };
 
 categoriasBtn.addEventListener("click", () => {
-  mostrarCategorias();
+  irInicioCategorias();
 });
 
 // ═══════════════════════════════════════════════════════════════════════

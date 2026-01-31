@@ -19,7 +19,7 @@
     </div>
 
     <ul class="sidebar-menu">
-      <li><a href="index.html" class="sidebar-link active"><span class="material-symbols-outlined">home</span> Inicio</a></li>
+      <li><a href="index.html" class="sidebar-link active"><span class="material-symbols-outlined">home</span> Categorías</a></li>
       <li><a href="carrito.html" class="sidebar-link"><span class="material-symbols-outlined">shopping_cart</span> Mi Carrito</a></li>
       <li><a href="admin.html" class="sidebar-link"><span class="material-symbols-outlined">admin_panel_settings</span> Administración</a></li>
     </ul>
@@ -43,7 +43,7 @@
         <button id="categoriasBtn" class="btn-header" title="Ver categorías">
           🏷️ Categorías
         </button>
-        <button id="carritoToggle" class="carrito-toggle carrito-toggle-header" title="Abrir carrito">
+        <button id="carritoToggle" class="carrito-toggle carrito-toggle-header" title="Ir al carrito">
           <span class="carrito-icon">🛒</span>
           <span id="cartoBadge" class="carrito-badge">0</span>
         </button>
@@ -75,52 +75,6 @@
       </div>
     </section>
   </main>
-
-  <!-- CARRITO COLAPSABLE -->
-  <aside id="carritoContainer" class="carrito-container">
-    <!-- Carrito Panel -->
-    <div class="carrito-panel">
-      <div class="carrito-header">
-        <h2 class="carrito-title">🛒 Tu Carrito</h2>
-        <button id="carritoCloseBtn" class="btn-close" title="Cerrar carrito">✕</button>
-      </div>
-
-      <div id="carritoItems" class="carrito-items"></div>
-
-      <!-- CARRITO VACÍO STATE -->
-      <div id="carritoVacio" class="carrito-vacio">
-        <div class="empty-icon">🛍️</div>
-        <p>Tu carrito está vacío</p>
-      </div>
-
-      <div class="carrito-footer">
-        <div class="carrito-total">
-          <span>Total:</span>
-          <strong id="carritoTotal">$ 0</strong>
-        </div>
-
-        <div class="carrito-form">
-          <input 
-            id="clienteNombre" 
-            placeholder="Tu nombre completo"
-            class="input-cliente"
-            type="text"
-            aria-label="Nombre del cliente"
-          >
-          <input 
-            id="clienteCiudad" 
-            placeholder="Tu ciudad"
-            class="input-cliente"
-            type="text"
-            aria-label="Ciudad del cliente"
-          >
-          <button onclick="enviarPedido()" class="btn-finalizar">
-            ✓ Finalizar Pedido
-          </button>
-        </div>
-      </div>
-    </div>
-  </aside>
 
   <!-- NOTIFICACIONES TOAST -->
   <div id="toastContainer" class="toast-container"></div>

@@ -92,6 +92,7 @@
               id="inputNombre" 
               placeholder="Tu nombre completo" 
               type="text"
+              class="input-cliente"
               required
               aria-label="Nombre del cliente"
             >
@@ -99,6 +100,7 @@
               id="inputCiudad" 
               placeholder="Tu ciudad" 
               type="text"
+              class="input-cliente"
               required
               aria-label="Ciudad del cliente"
             >
@@ -106,15 +108,17 @@
               id="inputTelefono" 
               placeholder="Tu teléfono (opcional)" 
               type="tel"
+              class="input-cliente"
               aria-label="Teléfono del cliente"
             >
             <textarea 
               id="inputNotas" 
               placeholder="Notas adicionales (opcional)"
               rows="3"
+              class="input-cliente"
               aria-label="Notas del pedido"
             ></textarea>
-            <button type="button" onclick="finalizarPedidoCarritoPage()" class="btn btn-primary btn-full">
+            <button type="button" onclick="finalizarPedidoCarritoPage()" class="btn-finalizar btn-full">
               ✓ Finalizar Pedido
             </button>
           </form>
@@ -126,6 +130,21 @@
       </aside>
     </div>
   </main>
+
+  <!-- MODAL CONFIRMACIÓN PEDIDO -->
+  <div id="pedidoConfirmacionModal" class="modal-confirmacion" style="display: none;">
+    <div class="modal-confirmacion-content" role="dialog" aria-modal="true" aria-labelledby="confirmacionTitulo">
+      <button class="modal-close" onclick="cerrarModalConfirmacion()" title="Cerrar">✕</button>
+      <div class="modal-confirmacion-body">
+        <div class="modal-confirmacion-icon">✅</div>
+        <h2 id="confirmacionTitulo">¡Pedido enviado!</h2>
+        <p id="confirmacionMensaje">Tu pedido fue registrado correctamente.</p>
+      </div>
+      <div class="modal-confirmacion-actions">
+        <button class="btn-finalizar" onclick="cerrarModalConfirmacion()">Volver al inicio</button>
+      </div>
+    </div>
+  </div>
 
   <!-- NOTIFICACIONES -->
   <div id="toastContainer" class="toast-container"></div>

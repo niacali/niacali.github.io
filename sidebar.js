@@ -32,6 +32,27 @@ document.querySelectorAll(".sidebar-link").forEach(link => {
   link.addEventListener("click", closeSidebar);
 });
 
+// Inicio en index.html: evitar recarga y mostrar categorías
+document.querySelectorAll('.sidebar-link[href="index.html"]').forEach(link => {
+  link.addEventListener("click", (e) => {
+    const currentPage = window.location.pathname.split("/").pop() || "index.html";
+    if (currentPage === "index.html") {
+      e.preventDefault();
+      if (typeof irInicioCategorias === "function") {
+        irInicioCategorias();
+        return;
+      }
+      if (typeof mostrarCategorias === "function") {
+        mostrarCategorias();
+      }
+      if (typeof cargar === "function") {
+        cargar();
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+});
+
 // Cerrar sidebar con Escape
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeSidebar();

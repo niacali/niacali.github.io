@@ -144,7 +144,7 @@ async function finalizarPedidoCarritoPage() {
   const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
 
   // Mostrar indicador de carga
-  const btnFinalizar = document.querySelector('.btn-primary[onclick="finalizarPedidoCarritoPage()"]');
+  const btnFinalizar = document.querySelector('.btn-finalizar[onclick="finalizarPedidoCarritoPage()"]');
   const btnOriginalText = btnFinalizar ? btnFinalizar.textContent : "";
   
   if (btnFinalizar) {
@@ -202,12 +202,12 @@ async function finalizarPedidoCarritoPage() {
         btnFinalizar.textContent = "✓ Pedido Enviado";
       }
       
-      // Esperar 2 segundos antes de actualizar vista
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       // Renderizar carrito vacío
       renderizarCarritoPage();
       actualizarResumen();
+
+      // Mostrar modal de confirmación
+      mostrarModalConfirmacion(mensaje);
       
       // Restaurar texto del botón
       if (btnFinalizar) {
@@ -227,6 +227,44 @@ async function finalizarPedidoCarritoPage() {
     }
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// MODAL CONFIRMACIÓN
+// ═══════════════════════════════════════════════════════════════════════
+
+function mostrarModalConfirmacion(mensaje) {
+  const modal = document.getElementById("pedidoConfirmacionModal");
+  const mensajeEl = document.getElementById("confirmacionMensaje");
+  if (!modal) return;
+  if (mensajeEl) mensajeEl.textContent = mensaje.replace("✓ ", "");
+  modal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+}
+
+function cerrarModalConfirmacion() {
+  const modal = document.getElementById("pedidoConfirmacionModal");
+  if (modal) modal.style.display = "none";
+  document.body.style.overflow = "auto";
+  window.location.href = "index.html";
+}
+
+// Cerrar modal si se hace click fuera del contenido
+document.addEventListener("click", (e) => {
+  const modal = document.getElementById("pedidoConfirmacionModal");
+  if (modal && modal.style.display === "flex" && e.target === modal) {
+    cerrarModalConfirmacion();
+  }
+});
+
+// Cerrar modal con Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const modal = document.getElementById("pedidoConfirmacionModal");
+    if (modal && modal.style.display === "flex") {
+      cerrarModalConfirmacion();
+    }
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════════════
 // LIMPIAR CARRITO
