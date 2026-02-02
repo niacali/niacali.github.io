@@ -1229,11 +1229,20 @@ body {
   }
 
   .input-cliente {
-    background: #2a2a2a;
+    background: #ffffff !important;
+    color: #212121 !important;
   }
 
   .input-cliente:focus {
-    background: #3a3a3a;
+    background: #ffffff !important;
+  }
+
+  .formulario-pedido {
+    background: #ffffff !important;
+  }
+
+  .resumen-card {
+    background: #ffffff !important;
   }
 }
 

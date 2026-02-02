@@ -30,7 +30,9 @@ if (typeof toast === 'undefined') {
 if (typeof window.carrito === 'undefined') {
   window.carrito = JSON.parse(localStorage.getItem("carrito")) || [];
 }
-const carrito = window.carrito;
+// Usar getter/setter para acceder a window.carrito
+const getCarrito = () => window.carrito;
+const carrito = getCarrito();
 
 // ═══════════════════════════════════════════════════════════════════════
 // INICIALIZACIÓN
@@ -302,7 +304,8 @@ document.addEventListener("keydown", (e) => {
 
 function limpiarCarritoPage() {
   if (confirm("¿Estás seguro de que deseas vaciar tu carrito?")) {
-    carrito = [];
+    // Vaciar el array global manteniendo la referencia
+    window.carrito.splice(0, window.carrito.length);
     guardarCarrito();
     renderizarCarritoPage();
     actualizarResumen();
@@ -315,7 +318,7 @@ function limpiarCarritoPage() {
 // ═══════════════════════════════════════════════════════════════════════
 
 function guardarCarrito() {
-  localStorage.setItem("carrito", JSON.stringify(carrito));
+  localStorage.setItem("carrito", JSON.stringify(window.carrito));
 }
 
 // ═══════════════════════════════════════════════════════════════════════
