@@ -116,6 +116,28 @@
           </div>
         </div>
 
+        <div class="pedidos-toolbar">
+          <div class="pedidos-toolbar-left">
+            <div class="search-input">
+              <span class="material-symbols-outlined">search</span>
+              <input id="pedidoSearch" type="text" placeholder="Buscar pedido, cliente o ciudad...">
+            </div>
+          </div>
+          <div class="pedidos-toolbar-right">
+            <select id="pedidoEstadoFiltro" class="select-control" aria-label="Filtrar por estado">
+              <option value="">Todos los estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="procesando">Procesando</option>
+              <option value="enviado">Enviado</option>
+              <option value="entregado">Entregado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+            <button onclick="exportarPedidosCSV()" class="btn btn-outline btn-small btn-compact">
+              📥 CSV
+            </button>
+          </div>
+        </div>
+
         <div id="listaPedidos" class="pedidos-lista">
           <!-- Los pedidos se cargarán aquí -->
         </div>
@@ -205,20 +227,68 @@
     </div>
   </main>
 
-  <!-- MODAL: EDITAR PEDIDO -->
-  <div id="modalEditarPedido" class="modal-admin" style="display: none;">
-    <div class="modal-admin-content">
-      <button class="modal-close" onclick="cerrarModalEditarPedido()">✕</button>
-      <h2>Editar Estado del Pedido</h2>
+  <!-- MODAL: DETALLE PEDIDO -->
+  <div id="modalDetallePedido" class="modal-admin" style="display: none;">
+    <div class="modal-admin-content" style="max-width: 900px;">
+      <button class="modal-close" onclick="cerrarModalDetallePedido()">✕</button>
+      <h2>📋 Detalle del Pedido</h2>
 
       <div class="modal-body">
-        <div class="pedido-info">
-          <p><strong>ID Pedido:</strong> <span id="pedidoId"></span></p>
-          <p><strong>Cliente:</strong> <span id="pedidoCliente"></span></p>
-          <p><strong>Fecha:</strong> <span id="pedidoFecha"></span></p>
-          <p><strong>Total:</strong> <span id="pedidoTotal"></span></p>
+        <!-- Información del Pedido -->
+        <div class="pedido-info" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+          <div>
+            <p style="margin: 5px 0; color: #666; font-size: 14px;">ID Pedido</p>
+            <p style="margin: 5px 0; font-weight: bold; font-size: 18px;">#<span id="pedidoId"></span></p>
+          </div>
+          <div>
+            <p style="margin: 5px 0; color: #666; font-size: 14px;">Cliente</p>
+            <p style="margin: 5px 0; font-weight: bold;" id="pedidoCliente"></p>
+          </div>
+          <div>
+            <p style="margin: 5px 0; color: #666; font-size: 14px;">Fecha</p>
+            <p style="margin: 5px 0; font-weight: bold;" id="pedidoFecha"></p>
+          </div>
+          <div>
+            <p style="margin: 5px 0; color: #666; font-size: 14px;">Ciudad</p>
+            <p style="margin: 5px 0; font-weight: bold;" id="pedidoCiudad"></p>
+          </div>
+          <div>
+            <p style="margin: 5px 0; color: #666; font-size: 14px;">Teléfono</p>
+            <p style="margin: 5px 0; font-weight: bold;" id="pedidoTelefono"></p>
+          </div>
+          <div>
+            <p style="margin: 5px 0; color: #666; font-size: 14px;">Dirección</p>
+            <p style="margin: 5px 0; font-weight: bold;" id="pedidoDireccion"></p>
+          </div>
         </div>
 
+        <!-- Items del Pedido -->
+        <div style="margin-bottom: 20px;">
+          <h3 style="margin-bottom: 15px; color: #333;">📦 Items del Pedido</h3>
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;">
+              <thead>
+                <tr style="background: #4CAF50; color: white;">
+                  <th style="padding: 12px; text-align: left; font-weight: 600;">Producto</th>
+                  <th style="padding: 12px; text-align: center; font-weight: 600;">Cantidad</th>
+                  <th style="padding: 12px; text-align: right; font-weight: 600;">Precio Unit.</th>
+                  <th style="padding: 12px; text-align: right; font-weight: 600;">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="tablaItemsPedido">
+                <!-- Los items se cargarán aquí dinámicamente -->
+              </tbody>
+              <tfoot>
+                <tr style="background: #f8f9fa; border-top: 2px solid #4CAF50;">
+                  <td colspan="3" style="padding: 15px; text-align: right; font-weight: bold; font-size: 16px;">TOTAL:</td>
+                  <td style="padding: 15px; text-align: right; font-weight: bold; font-size: 18px; color: #4CAF50;" id="pedidoTotal"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Estado del Pedido -->
         <div class="form-group">
           <label for="selectEstado">Estado del Pedido:</label>
           <select id="selectEstado" class="form-select">
@@ -230,19 +300,16 @@
           </select>
         </div>
 
-        <textarea 
-          id="notasPedido" 
-          placeholder="Notas internas del pedido"
-          rows="4"
-          class="form-textarea"
-        ></textarea>
-
-        <div class="modal-actions">
+        <!-- Acciones -->
+        <div class="modal-actions" style="margin-top: 20px;">
           <button onclick="guardarCambioPedido()" class="btn btn-primary">
-            Guardar Cambios
+            💾 Guardar Estado
           </button>
-          <button onclick="cerrarModalEditarPedido()" class="btn btn-outline">
-            Cancelar
+          <button onclick="imprimirPedidoActual()" class="btn btn-outline">
+            🖨 Imprimir
+          </button>
+          <button onclick="cerrarModalDetallePedido()" class="btn btn-outline">
+            ✕ Cerrar
           </button>
         </div>
       </div>

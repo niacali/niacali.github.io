@@ -3,16 +3,16 @@
    Carrito Colapsable, Toasts, Mejor Gestión de Errores
    ═══════════════════════════════════════════════════════════════════════ */
 
-// Verificar si estamos en una página que no es admin.html
-if (document.body.classList.contains('admin-page') || window.location.pathname.includes('admin.html')) {
-  console.log("app.js: No se ejecuta en admin.html");
+// Verificar si estamos en admin.html - No ejecutar app.js allí
+if (window.location.pathname.includes('admin.html') || document.getElementById('adminPanel')) {
+  console.log("✓ app.js desactivado en admin.html");
 } else {
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyg1Qa6hVxzdg7Gxqhjbp3391BppKVjUWSAKBMT4LumlavLj8GFNZ28Dk-JALMF6hIV/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzQfUpINrLCUNynW1bc-AUhX8ib4vMiQnd9T_ZWMdg0XV8Ix16rCmzfUl-2joDLtaaa_A/exec";
 const API_KEY = "TIENDA_API_2026";
 const CLOUDFLARE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
 const LIMIT = 20;

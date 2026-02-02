@@ -1,4 +1,5 @@
 node_modules/
+Anterior/
 .DS_Store
 *.swp
 *.log

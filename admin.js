@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbw_QrC9F3DBGzwNFRjby2wa6iFNuGDUTkIQHBWi4VVpwolR6KhF7OlCyPYBzqhDoekoyA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzQfUpINrLCUNynW1bc-AUhX8ib4vMiQnd9T_ZWMdg0XV8Ix16rCmzfUl-2joDLtaaa_A/exec";
 const API_KEY = "TIENDA_API_2026";
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -65,6 +65,8 @@ const loginPanel = document.getElementById("loginPanel");
 const adminPanel = document.getElementById("adminPanel");
 const btnLogout = document.getElementById("btnLogout");
 const adminTabs = document.querySelectorAll(".admin-tab-btn");
+const pedidoSearch = document.getElementById("pedidoSearch");
+const pedidoEstadoFiltro = document.getElementById("pedidoEstadoFiltro");
 
 // ═══════════════════════════════════════════════════════════════════════
 // VARIABLES GLOBALES
@@ -78,6 +80,8 @@ let categoriasAdmin = [];
 let pedidoEnEdicion = null;
 let productoEnEdicion = null;
 let categoriaEnEdicion = null;
+let pedidosFiltroTexto = "";
+let pedidosFiltroEstado = "";
 
 // ═══════════════════════════════════════════════════════════════════════
 // AUTENTICACIÓN
@@ -129,6 +133,26 @@ function verificarAutenticacion() {
   }
 }
 
+function aplicarFiltrosPedidos() {
+  const texto = pedidosFiltroTexto.trim().toLowerCase();
+  const estado = pedidosFiltroEstado.trim().toLowerCase();
+
+  const filtrados = pedidosAdmin.filter(pedido => {
+    const coincideTexto = !texto || [
+      pedido.id,
+      pedido.cliente,
+      pedido.ciudad
+    ].some(valor => String(valor || "").toLowerCase().includes(texto));
+
+    const estadoPedido = String(pedido.estado || "pendiente").toLowerCase();
+    const coincideEstado = !estado || estadoPedido === estado;
+
+    return coincideTexto && coincideEstado;
+  });
+
+  renderizarPedidosAdmin(filtrados);
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════════════════════════════════════
@@ -149,81 +173,150 @@ adminTabs.forEach(tab => {
   });
 });
 
+if (pedidoSearch) {
+  pedidoSearch.addEventListener("input", (event) => {
+    pedidosFiltroTexto = event.target.value || "";
+    aplicarFiltrosPedidos();
+  });
+}
+
+if (pedidoEstadoFiltro) {
+  pedidoEstadoFiltro.addEventListener("change", (event) => {
+    pedidosFiltroEstado = event.target.value || "";
+    aplicarFiltrosPedidos();
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // CARGAR PEDIDOS
 // ═══════════════════════════════════════════════════════════════════════
 
-function cargarPedidosAdmin() {
-  // Simular carga desde Google Sheets
-  fetch(API_URL + "?action=obtenerPedidos&apiKey=" + API_KEY)
-    .then(response => response.json())
-    .then(data => {
-      if (data.success && data.pedidos) {
-        pedidosAdmin = data.pedidos;
-        renderizarPedidosAdmin();
-      }
-    })
-    .catch(error => {
-      console.error("Error al cargar pedidos:", error);
-      // Usar datos de ejemplo en caso de error
-      pedidosAdmin = obtenerPedidosDemo();
-      renderizarPedidosAdmin();
-    });
+async function cargarPedidosAdmin() {
+  try {
+    const response = await fetch(`${API_URL}?action=getPedidos&key=${API_KEY}`);
+    const data = await response.json();
+
+    console.log("Datos recibidos del backend:", data);
+
+    if (Array.isArray(data)) {
+      pedidosAdmin = data;
+    } else if (data.items && Array.isArray(data.items)) {
+      pedidosAdmin = data.items;
+    } else if (data.data && Array.isArray(data.data)) {
+      pedidosAdmin = data.data;
+    } else {
+      throw data?.error || "Respuesta inválida";
+    }
+
+    console.log("Pedidos procesados:", pedidosAdmin);
+    aplicarFiltrosPedidos();
+    console.log(`✓ ${pedidosAdmin.length} pedidos cargados`);
+  } catch (error) {
+    console.error("Error al cargar pedidos:", error);
+    pedidosAdmin = [];
+    renderizarPedidosAdmin([]);
+    if (window.toast) window.toast.error("Error de conexión al cargar pedidos");
+  }
 }
 
-function renderizarPedidosAdmin() {
+function renderizarPedidosAdmin(lista = pedidosAdmin) {
   const listaPedidos = document.getElementById("listaPedidos");
   const pedidosVacio = document.getElementById("pedidosVacio");
 
-  if (!pedidosAdmin || pedidosAdmin.length === 0) {
+  if (!lista || lista.length === 0) {
     listaPedidos.style.display = "none";
     pedidosVacio.style.display = "flex";
     return;
   }
 
-  listaPedidos.style.display = "grid";
+  listaPedidos.style.display = "block";
   pedidosVacio.style.display = "none";
-  listaPedidos.innerHTML = "";
-
-  pedidosAdmin.forEach((pedido, index) => {
-    const pedidoDiv = document.createElement("div");
-    pedidoDiv.className = `pedido-card estado-${pedido.estado || 'pendiente'}`;
-
-    const totalItems = pedido.items ? pedido.items.reduce((sum, item) => sum + (item.cantidad || 1), 0) : 0;
-
-    pedidoDiv.innerHTML = `
-      <div class="pedido-header">
-        <div class="pedido-info">
-          <h3>#${index + 1} - ${pedido.cliente}</h3>
-          <p class="pedido-fecha">${pedido.fecha || new Date().toLocaleString("es-CO")}</p>
-        </div>
-        <span class="pedido-estado ${pedido.estado || 'pendiente'}">
-          ${pedido.estado || 'pendiente'}
-        </span>
-      </div>
-
-      <div class="pedido-body">
-        <p><strong>Ciudad:</strong> ${pedido.ciudad}</p>
-        <p><strong>Teléfono:</strong> ${pedido.telefono || "N/A"}</p>
-        <p><strong>Items:</strong> ${totalItems}</p>
-        <p><strong>Total:</strong> $ ${Number(pedido.total || 0).toLocaleString()}</p>
-      </div>
-
-      <div class="pedido-acciones">
-        <button onclick="abrirEditarPedido(${index})" class="btn btn-small">
-          ✎ Editar
-        </button>
-        <button onclick="imprimirPedido(${index})" class="btn btn-small">
-          🖨 Imprimir
-        </button>
-        <button onclick="eliminarPedido(${index})" class="btn btn-small btn-danger">
-          🗑 Eliminar
-        </button>
-      </div>
+  
+  const rows = lista.map((pedido, index) => {
+    // Validar y limpiar datos - ahora espera ID numérico
+    let idPedido = pedido.id;
+    
+    // Convertir a número y validar
+    const idNumerico = Number(idPedido);
+    
+    // Solo usar fallback si el ID es realmente inválido (no es número y no tiene valor)
+    if (isNaN(idNumerico) || (typeof idPedido === 'string' && idPedido.trim() === '')) {
+      idPedido = 9000 + index + 1;
+    } else {
+      // Si es número válido, usarlo directamente
+      idPedido = idNumerico;
+    }
+    
+    const idDisplay = idPedido;
+    
+    const estadoRaw = pedido.estado ? String(pedido.estado).trim().toLowerCase() : "";
+    const estado = estadoRaw || "en proceso";
+    const cliente = pedido.cliente ? String(pedido.cliente).trim() : "N/A";
+    const ciudad = pedido.ciudad ? String(pedido.ciudad).trim() : "N/A";
+    const total = Number(pedido.total || 0).toLocaleString();
+    
+    let fechaFormateada = "N/A";
+    if (pedido.fecha) {
+      try {
+        const date = new Date(pedido.fecha);
+        if (!isNaN(date.getTime())) {
+          fechaFormateada = date.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' });
+        } else {
+          fechaFormateada = String(pedido.fecha).substring(0, 16);
+        }
+      } catch {
+        fechaFormateada = String(pedido.fecha).substring(0, 16);
+      }
+    }
+    
+    const realIndex = pedidosAdmin.findIndex(p => 
+      (p.id && p.id == pedido.id) || 
+      (p.cliente === pedido.cliente && p.fecha === pedido.fecha)
+    );
+    
+    return `
+      <tr>
+        <td class="pedido-id">#${idDisplay}</td>
+        <td>${cliente}</td>
+        <td>${fechaFormateada}</td>
+        <td>${ciudad}</td>
+        <td>$ ${total}</td>
+        <td><span class="pedido-estado ${estado}">${estado}</span></td>
+        <td class="pedido-row-actions">
+          <button onclick="verDetallePedido('${idPedido}')" class="btn-icon btn-icon-primary" title="Ver detalle">
+            👁️
+          </button>
+          <button onclick="imprimirPedido(${realIndex >= 0 ? realIndex : index})" class="btn-icon" title="Imprimir">
+            🖨
+          </button>
+          <button onclick="exportarPedidoCSV(${realIndex >= 0 ? realIndex : index})" class="btn-icon" title="Exportar CSV">
+            📄
+          </button>
+        </td>
+      </tr>
     `;
-
-    listaPedidos.appendChild(pedidoDiv);
-  });
+  }).join("");
+  
+  listaPedidos.innerHTML = `
+    <div class="pedidos-table-wrapper">
+      <table class="pedidos-table">
+        <thead>
+          <tr>
+            <th>Pedido</th>
+            <th>Cliente</th>
+            <th>Fecha</th>
+            <th>Ciudad</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th class="th-acciones">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function refrescarPedidos() {
@@ -235,97 +328,173 @@ function refrescarPedidos() {
 // EDITAR PEDIDO
 // ═══════════════════════════════════════════════════════════════════════
 
-function abrirEditarPedido(index) {
-  pedidoEnEdicion = index;
-  const pedido = pedidosAdmin[index];
+async function verDetallePedido(idPedido) {
+  try {
+    // Buscar el pedido en el array
+    const pedido = pedidosAdmin.find(p => p.id == idPedido);
+    
+    if (!pedido) {
+      if (window.toast) window.toast.error("Pedido no encontrado");
+      return;
+    }
 
-  document.getElementById("pedidoId").textContent = index + 1;
-  document.getElementById("pedidoCliente").textContent = pedido.cliente;
-  document.getElementById("pedidoFecha").textContent = pedido.fecha || "N/A";
-  document.getElementById("pedidoTotal").textContent = `$ ${Number(pedido.total || 0).toLocaleString()}`;
-  document.getElementById("selectEstado").value = pedido.estado || "pendiente";
-  document.getElementById("notasPedido").value = pedido.notas || "";
+    pedidoEnEdicion = idPedido;
 
-  document.getElementById("modalEditarPedido").style.display = "flex";
+    // Cargar detalle del pedido desde la API
+    let items = [];
+    try {
+      const response = await fetch(`${API_URL}?action=getPedidoDetalle&key=${API_KEY}&idPedido=${idPedido}`);
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        items = data;
+      } else if (data.items && Array.isArray(data.items)) {
+        items = data.items;
+      } else if (data.data && Array.isArray(data.data)) {
+        items = data.data;
+      } else {
+        items = [];
+      }
+    } catch (error) {
+      console.error("Error al cargar detalle del pedido:", error);
+      items = [];
+    }
+
+    // Actualizar información del pedido en el modal
+    document.getElementById("pedidoId").textContent = pedido.id;
+    document.getElementById("pedidoCliente").textContent = pedido.cliente;
+    document.getElementById("pedidoFecha").textContent = pedido.fecha || "N/A";
+    document.getElementById("pedidoTotal").textContent = `$ ${Number(pedido.total || 0).toLocaleString()}`;
+    document.getElementById("pedidoCiudad").textContent = pedido.ciudad || "N/A";
+    document.getElementById("pedidoTelefono").textContent = pedido.telefono || "N/A";
+    document.getElementById("pedidoDireccion").textContent = pedido.direccion || "N/A";
+    document.getElementById("selectEstado").value = pedido.estado || "pendiente";
+
+    // Renderizar items del pedido
+    const tablaItems = document.getElementById("tablaItemsPedido");
+    tablaItems.innerHTML = "";
+
+    if (items.length === 0) {
+      tablaItems.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 20px; color: #888;">
+            No hay items en este pedido
+          </td>
+        </tr>
+      `;
+    } else {
+      items.forEach(item => {
+        const nombreItem = item.producto || item.nombre || "Producto";
+        const cantidadItem = Number(item.cantidad || 0);
+        const precioUnitario = Number(item.precio_unitario ?? item.precio ?? 0);
+        const subtotalItem = Number(item.total_venta ?? item.subtotal ?? (precioUnitario * cantidadItem));
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${nombreItem}</td>
+          <td style="text-align: center;">${cantidadItem}</td>
+          <td style="text-align: right;">$ ${precioUnitario.toLocaleString()}</td>
+          <td style="text-align: right;">$ ${subtotalItem.toLocaleString()}</td>
+        `;
+        tablaItems.appendChild(tr);
+      });
+    }
+
+    // Mostrar modal
+    document.getElementById("modalDetallePedido").style.display = "flex";
+  } catch (error) {
+    console.error("Error al cargar detalle del pedido:", error);
+    if (window.toast) window.toast.error("Error de conexión");
+  }
+}
+
+function cerrarModalDetallePedido() {
+  document.getElementById("modalDetallePedido").style.display = "none";
+  pedidoEnEdicion = null;
 }
 
 function cerrarModalEditarPedido() {
-  document.getElementById("modalEditarPedido").style.display = "none";
-  pedidoEnEdicion = null;
+  cerrarModalDetallePedido();
 }
 
 function guardarCambioPedido() {
   if (pedidoEnEdicion === null) return;
 
   const nuevoEstado = document.getElementById("selectEstado").value;
-  const nuevasNotas = document.getElementById("notasPedido").value;
+  
+  // Buscar el pedido en el array
+  const pedido = pedidosAdmin.find(p => p.id == pedidoEnEdicion);
+  if (!pedido) {
+    if (window.toast) window.toast.error("Pedido no encontrado");
+    return;
+  }
 
-  pedidosAdmin[pedidoEnEdicion].estado = nuevoEstado;
-  pedidosAdmin[pedidoEnEdicion].notas = nuevasNotas;
+  // Actualizar el estado localmente
+  pedido.estado = nuevoEstado;
 
-  // Sincronizar con API
+  // Sincronizar con API (comentado hasta que se implemente en el backend)
+  /*
   fetch(API_URL, {
     method: "POST",
-    body: new URLSearchParams({
-      action: "actualizarPedido",
-      apiKey: API_KEY,
-      pedidoIndex: pedidoEnEdicion,
-      pedidoData: JSON.stringify(pedidosAdmin[pedidoEnEdicion])
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: "actualizarEstadoPedido",
+      key: API_KEY,
+      idPedido: pedidoEnEdicion,
+      estado: nuevoEstado
     })
   })
     .then(response => response.json())
     .then(data => {
-      if (data.success) {
-        if (toast) toast.exito("Pedido actualizado");
-        cerrarModalEditarPedido();
+      if (data.ok) {
+        if (window.toast) window.toast.exito("Estado actualizado");
+        cerrarModalDetallePedido();
         renderizarPedidosAdmin();
       } else {
-        if (toast) toast.error("Error al guardar cambios");
+        if (window.toast) window.toast.error("Error al guardar cambios");
       }
     })
     .catch(error => {
       console.error("Error:", error);
-      if (toast) toast.error("Error de conexión");
+      if (window.toast) window.toast.error("Error de conexión");
     });
+  */
+  
+  // Por ahora, solo actualizar localmente
+  if (window.toast) window.toast.exito("Estado actualizado (local)");
+  cerrarModalDetallePedido();
+  renderizarPedidosAdmin();
+}
+
+function imprimirPedidoActual() {
+  if (pedidoEnEdicion === null) return;
+  const pedido = pedidosAdmin.find(p => p.id == pedidoEnEdicion);
+  if (!pedido) return;
+  imprimirPedidoData(pedido);
 }
 
 function imprimirPedido(index) {
   const pedido = pedidosAdmin[index];
+  imprimirPedidoData(pedido);
+}
+
+function imprimirPedidoData(pedido) {
   const contenido = `
-    <h2>PEDIDO #${index + 1}</h2>
+    <h2>PEDIDO #${pedido.id}</h2>
     <p><strong>Cliente:</strong> ${pedido.cliente}</p>
-    <p><strong>Ciudad:</strong> ${pedido.ciudad}</p>
+    <p><strong>Ciudad:</strong> ${pedido.ciudad || "N/A"}</p>
     <p><strong>Teléfono:</strong> ${pedido.telefono || "N/A"}</p>
+    <p><strong>Dirección:</strong> ${pedido.direccion || "N/A"}</p>
     <p><strong>Fecha:</strong> ${pedido.fecha || "N/A"}</p>
     <p><strong>Estado:</strong> ${pedido.estado || "pendiente"}</p>
     
-    <h3>Items:</h3>
-    <table border="1" cellpadding="5">
-      <tr>
-        <th>Producto</th>
-        <th>Cantidad</th>
-        <th>Precio</th>
-        <th>Subtotal</th>
-      </tr>
-      ${(pedido.items || []).map(item => `
-        <tr>
-          <td>${item.nombre}</td>
-          <td>${item.cantidad}</td>
-          <td>$ ${Number(item.precio).toLocaleString()}</td>
-          <td>$ ${Number(item.precio * item.cantidad).toLocaleString()}</td>
-        </tr>
-      `).join("")}
-    </table>
-    
     <p><strong>Total:</strong> $ ${Number(pedido.total || 0).toLocaleString()}</p>
-    ${pedido.notas ? `<p><strong>Notas:</strong> ${pedido.notas}</p>` : ""}
   `;
 
   const ventana = window.open("", "Imprimir Pedido", "width=800,height=600");
   ventana.document.write(`
     <html>
       <head>
-        <title>Pedido #${index + 1}</title>
+        <title>Pedido #${pedido.id}</title>
         <style>
           body { font-family: Arial; margin: 20px; }
           table { width: 100%; border-collapse: collapse; }
@@ -599,6 +768,41 @@ function cerrarModalEditarCategoria() {
   categoriaEnEdicion = null;
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// FUNCIONES GLOBALES (PARA LLAMADAS DESDE HTML)
+// ═══════════════════════════════════════════════════════════════════════
+
+window.refrescarPedidos = function() {
+  console.log("🔄 Refrescando pedidos...");
+  cargarPedidosAdmin();
+  const toast = window.toast || window.parent.toast;
+  if (toast && toast.info) toast.info("Pedidos actualizados");
+};
+
+window.verDetallePedido = verDetallePedido;
+window.cerrarModalDetallePedido = cerrarModalDetallePedido;
+window.cerrarModalEditarPedido = cerrarModalEditarPedido;
+window.guardarCambioPedido = guardarCambioPedido;
+window.imprimirPedido = imprimirPedido;
+window.imprimirPedidoActual = imprimirPedidoActual;
+
+// Funciones de categorías
+window.abrirFormCategoria = abrirFormCategoria;
+window.cerrarModalEditarCategoria = cerrarModalEditarCategoria;
+window.guardarCambioCategoria = guardarCambioCategoria;
+
+// Funciones de productos
+window.abrirFormProducto = abrirFormProducto;
+window.cerrarModalEditarProducto = cerrarModalEditarProducto;
+window.guardarCambioProducto = guardarCambioProducto;
+
+// Funciones de exportación
+window.exportarPedidoCSV = exportarPedidoCSV;
+window.exportarPedidosCSV = exportarPedidosCSV;
+window.exportarPedidosJSON = exportarPedidosJSON;
+window.exportarProductosCSV = exportarProductosCSV;
+window.exportarProductosJSON = exportarProductosJSON;
+
 function guardarCambioCategoria() {
   const id = document.getElementById("editCategoriaId").value.trim();
   const nombre = document.getElementById("editCategoriaNombre").value.trim();
@@ -677,6 +881,16 @@ function eliminarCategoria(index) {
 // ═══════════════════════════════════════════════════════════════════════
 // EXPORTAR DATOS
 // ═══════════════════════════════════════════════════════════════════════
+
+function exportarPedidoCSV(index) {
+  const pedido = pedidosAdmin[index];
+  if (!pedido) return;
+  
+  let csv = "ID,Cliente,Ciudad,Teléfono,Fecha,Estado,Total\n";
+  csv += `"${pedido.id || 'N/A'}","${pedido.cliente}","${pedido.ciudad || 'N/A'}","${pedido.telefono || "N/A"}","${pedido.fecha || ""}","${pedido.estado || "pendiente"}",${pedido.total || 0}\n`;
+  
+  descargarArchivo(csv, `pedido_${pedido.id || 'pedido'}.csv`, "text/csv");
+}
 
 function exportarPedidosCSV() {
   let csv = "ID,Cliente,Ciudad,Teléfono,Fecha,Estado,Total\n";

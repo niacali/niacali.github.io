@@ -9,6 +9,7 @@ const DRIVE_IMAGES_FOLDER_ID = "1EDyKQ1ISi1UyieKQ01JgywP-whGF5A9U";
 const SHEET_PRODUCTOS = "Productos";
 const SHEET_CATEGORIAS = "categorias";
 const SHEET_PEDIDOS = "Pedidos";
+const SHEET_CONFIG = "Config";
 const CACHE_MINUTES = 10;
 
 /*********************************
@@ -48,6 +49,14 @@ function doGet(e) {
 
       case "getProducto":
         return jsonOutput(getProducto(e.parameter.id));
+
+      case "getPedidos":
+        Logger.log("Ejecutando getPedidos");
+        return jsonOutput(getPedidos());
+
+      case "getPedidoDetalle":
+        Logger.log("Ejecutando getPedidoDetalle");
+        return jsonOutput(getPedidoDetalle(e.parameter.idPedido));
 
       default:
         throw "Acción GET no válida: " + action;
@@ -476,14 +485,24 @@ function crearPedido(data) {
   const sheet = ss.getSheetByName(SHEET_PEDIDOS);
   const pedidoId = generarIdPedido();
 
+  // Calcular total si no viene en data
+  let total = data.total || 0;
+  if (!total && data.items && data.items.length > 0) {
+    total = data.items.reduce((sum, item) => {
+      const precio = Number(item.precio || item.precio_unitario || 0);
+      const cantidad = Number(item.cantidad || 1);
+      return sum + (precio * cantidad);
+    }, 0);
+  }
+
   sheet.appendRow([
     pedidoId,
     new Date(),
     data.cliente,
     data.ciudad,
     JSON.stringify(data.items),
-    data.total || 0,
-    "nuevo"
+    total,
+    "en proceso"
   ]);
 
   return {
@@ -493,16 +512,144 @@ function crearPedido(data) {
 }
 
 function generarIdPedido() {
-  return "PED-" + Utilities.formatDate(
-    new Date(),
-    "GMT-5",
-    "yyyyMMdd-HHmmss"
-  );
+  const ss = getSpreadsheet();
+  let configSheet = ss.getSheetByName(SHEET_CONFIG);
+  
+  // Crear hoja Config si no existe
+  if (!configSheet) {
+    configSheet = ss.insertSheet(SHEET_CONFIG);
+    configSheet.appendRow(["contador", "ultimo_id"]);
+    configSheet.appendRow(["pedidos", 0]);
+  }
+  
+  // Buscar fila de contador de pedidos
+  const data = configSheet.getDataRange().getValues();
+  let filaPedidos = -1;
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === "pedidos") {
+      filaPedidos = i + 1; // +1 porque las filas empiezan en 1
+      break;
+    }
+  }
+  
+  // Si no existe la fila, crearla
+  if (filaPedidos === -1) {
+    configSheet.appendRow(["pedidos", 0]);
+    filaPedidos = configSheet.getLastRow();
+  }
+  
+  // Obtener y actualizar contador
+  const ultimoId = configSheet.getRange(filaPedidos, 2).getValue() || 0;
+  const nuevoId = Number(ultimoId) + 1;
+  configSheet.getRange(filaPedidos, 2).setValue(nuevoId);
+  
+  return nuevoId;
+}
+
+/*********************************
+ * OBTENER PEDIDOS
+ *********************************/
+function getPedidos() {
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_PEDIDOS);
+  const data = sheet.getDataRange().getValues();
+  
+  if (data.length < 2) return []; // Solo headers
+  
+  const headers = data.shift();
+  
+  // Log para debug
+  Logger.log("Headers en Pedidos: " + JSON.stringify(headers));
+  
+  // Función helper para buscar columna case-insensitive
+  const findColumnIndex = (headerName) => {
+    const lowerName = String(headerName).toLowerCase().trim();
+    return headers.findIndex(h => String(h).toLowerCase().trim() === lowerName);
+  };
+  
+  // Mapear índices de columnas (case-insensitive)
+  const idxId = findColumnIndex("id");
+  const idxFecha = findColumnIndex("fecha");
+  const idxCliente = findColumnIndex("cliente");
+  const idxCiudad = findColumnIndex("ciudad");
+  const idxItems = findColumnIndex("items");
+  const idxTotal = findColumnIndex("total");
+  const idxEstado = findColumnIndex("estado");
+  
+  Logger.log(`Índices encontrados - id: ${idxId}, fecha: ${idxFecha}, cliente: ${idxCliente}, ciudad: ${idxCiudad}`);
+  
+  return data.map((row, index) => {
+    // Obtener ID del row (ahora con índice correcto)
+    let pedidoId = idxId >= 0 ? row[idxId] : undefined;
+    
+    // Validar: solo usar fallback si ID está completamente vacío
+    if (pedidoId === undefined || pedidoId === null || String(pedidoId).trim() === "") {
+      // Generar ID temporal numérico basado en índice
+      pedidoId = 9000 + index + 1;
+    } else {
+      // Asegurar que sea número si es posible
+      const numId = Number(pedidoId);
+      if (!isNaN(numId)) {
+        pedidoId = numId;
+      }
+    }
+    
+    return {
+      id: pedidoId,
+      fecha: idxFecha >= 0 ? row[idxFecha] : "",
+      cliente: idxCliente >= 0 ? row[idxCliente] : "",
+      ciudad: idxCiudad >= 0 ? row[idxCiudad] : "",
+      items: idxItems >= 0 ? parseJSON(row[idxItems]) : [],
+      total: idxTotal >= 0 ? row[idxTotal] : 0,
+      estado: idxEstado >= 0 ? (row[idxEstado] || "nuevo") : "nuevo"
+    };
+  });
+}
+
+/*********************************
+ * OBTENER DETALLE DE PEDIDO
+ *********************************/
+function getPedidoDetalle(idPedido) {
+  if (!idPedido) throw "ID de pedido requerido";
+  
+  const ss = getSpreadsheet();
+  const sheet = ss.getSheetByName("pedido_detalle");
+  const data = sheet.getDataRange().getValues();
+  
+  if (data.length < 2) return []; // Solo headers
+  
+  const headers = data.shift();
+  
+  // Mapear índices de columnas
+  const idxIdPedido = headers.indexOf("id_pedido");
+  const idxProducto = headers.indexOf("producto");
+  const idxPrecio = headers.indexOf("precio_unitario");
+  const idxCantidad = headers.indexOf("cantidad");
+  const idxSubtotal = headers.indexOf("subtotal");
+  
+  return data
+    .filter(row => String(row[idxIdPedido]) === String(idPedido))
+    .map(row => ({
+      id_pedido: row[idxIdPedido],
+      producto: row[idxProducto],
+      precio_unitario: row[idxPrecio],
+      cantidad: row[idxCantidad],
+      subtotal: row[idxSubtotal]
+    }));
 }
 
 /*********************************
  * UTILIDADES
  *********************************/
+function parseJSON(str) {
+  try {
+    return typeof str === "string" ? JSON.parse(str) : str;
+  } catch (e) {
+    return str || [];
+  }
+}
+
 function convertirDriveUrl(url) {
   if (!url) return "";
 
@@ -583,32 +730,6 @@ function generarPedidoId(sheet) {
 }
 
 
-
-function crearPedido(data) {
-  const ss = getSpreadsheet();
-  const sheet = ss.getSheetByName("pedidos");
-
-  const pedidoId = generarPedidoId(sheet);
-
-  const total = data.items.reduce(
-    (sum, p) => sum + p.precio * p.cantidad,
-    0
-  );
-
-  sheet.appendRow([
-    pedidoId,
-    new Date(),
-    data.cliente.nombre,
-    data.cliente.ciudad,
-    total,
-    JSON.stringify(data.items)
-  ]);
-
-  return {
-    success: true,
-    pedido_id: pedidoId
-  };
-}
 
 /*********************************
  * PRUEBA COMPLETA DEL SISTEMA
