@@ -115,6 +115,9 @@ function mostrarPanelAdmin() {
   loginPanel.style.display = "none";
   adminPanel.style.display = "block";
   btnLogout.style.display = "block";
+  if (document.getElementById("correoBodega")) {
+    cargarCorreoBodega();
+  }
 }
 
 function verificarAutenticacion() {
@@ -1314,34 +1317,35 @@ async function guardarCorreoBodega() {
 
     if (data.success) {
       alert("✓ Correo de bodega guardado correctamente");
-      // Guardar también en localStorage como respaldo
-      localStorage.setItem("correo_bodega", correoBodega);
     } else {
       alert("Error al guardar: " + (data.error || "Desconocido"));
     }
   } catch (error) {
     console.error("Error guardando correo de bodega:", error);
-    alert("Error de conexión. El correo se guardará localmente.");
-    // Guardar localmente como respaldo
-    localStorage.setItem("correo_bodega", correoBodega);
+    alert("Error de conexión. No se pudo guardar el correo.");
   }
 }
 
 async function cargarCorreoBodega() {
+  const correoInput = document.getElementById("correoBodega");
+  if (!correoInput) return;
+
   try {
-    // Primero intentar cargar del localStorage
-    const correoBodegaLocal = localStorage.getItem("correo_bodega");
-    if (correoBodegaLocal) {
-      document.getElementById("correoBodega").value = correoBodegaLocal;
-      return;
+    let data = null;
+    try {
+      const response = await fetch(API_PROXY_URL + "?action=obtenerConfiguracion&key=" + API_KEY);
+      data = await response.json();
+    } catch (proxyError) {
+      console.warn("Proxy no disponible, usando endpoint directo:", proxyError);
     }
 
-    const response = await fetch(API_PROXY_URL + "?action=obtenerConfiguracion&key=" + API_KEY);
-    const data = await response.json();
+    if (!data || !data.success || !data.correo_bodega) {
+      const responseDirect = await fetch(API_URL + "?action=obtenerConfiguracion&key=" + API_KEY);
+      data = await responseDirect.json();
+    }
 
-    if (data.success && data.correo_bodega) {
-      document.getElementById("correoBodega").value = data.correo_bodega;
-      localStorage.setItem("correo_bodega", data.correo_bodega);
+    if (data && data.success && data.correo_bodega) {
+      correoInput.value = data.correo_bodega;
     }
   } catch (error) {
     console.warn("No se pudo cargar configuración desde servidor:", error);
