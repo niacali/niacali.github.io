@@ -2779,3 +2779,67 @@ select:focus-visible {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   CONFIGURACIÓN SECCIÓN
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.configuracion-seccion {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.configuracion-seccion h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--primary);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.config-card {
+  background: #f8f9fa;
+  border-radius: 6px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.config-card .form-group {
+  margin-bottom: 1rem;
+}
+
+.config-card .form-group:last-child {
+  margin-bottom: 0;
+}
+
+.config-card .modal-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ddd;
+}
+
+.config-card .btn {
+  flex: 1;
+}
+
+.config-info {
+  background: #f0f7ff;
+  border-left: 4px solid var(--primary);
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.config-info p {
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+.config-info strong {
+  color: var(--primary);
+}

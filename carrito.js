@@ -9,6 +9,12 @@
 if (typeof API_URL === 'undefined') {
   window.API_URL = "https://script.google.com/macros/s/AKfycbw_QrC9F3DBGzwNFRjby2wa6iFNuGDUTkIQHBWi4VVpwolR6KhF7OlCyPYBzqhDoekoyA/exec";
 }
+if (typeof API_PROXY_URL === 'undefined') {
+  window.API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
+}
+if (typeof API_PDF_WORKER_URL === 'undefined') {
+  window.API_PDF_WORKER_URL = "https://pedido-pdf.pedidosnia-cali.workers.dev";
+}
 if (typeof API_KEY === 'undefined') {
   window.API_KEY = "TIENDA_API_2026";
 }
@@ -153,7 +159,7 @@ function actualizarResumen() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// FINALIZAR PEDIDO DESDE PÁGINA DE CARRITO
+// FINALIZAR PEDIDO DESDE PÁGINA DE CARRITO (CON PDF Y ENVÍO A BODEGA)
 // ═══════════════════════════════════════════════════════════════════════
 
 async function finalizarPedidoCarritoPage() {
@@ -181,11 +187,12 @@ async function finalizarPedidoCarritoPage() {
   
   if (btnFinalizar) {
     btnFinalizar.disabled = true;
-    btnFinalizar.textContent = "⏳ Procesando...";
+    btnFinalizar.textContent = "⏳ Procesando pedido...";
   }
 
   try {
-    const res = await fetch("https://pedido-proxy.pedidosnia-cali.workers.dev", {
+    // 1. CREAR PEDIDO EN LA BASE DE DATOS
+    const resCrearPedido = await fetch("https://pedido-proxy.pedidosnia-cali.workers.dev", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -198,56 +205,85 @@ async function finalizarPedidoCarritoPage() {
     });
 
     // Obtener texto de respuesta primero
-    const responseText = await res.text();
+    const responseText = await resCrearPedido.text();
     
     // Intentar parsear como JSON
-    let data = null;
+    let dataPedido = null;
     try {
-      data = JSON.parse(responseText);
+      dataPedido = JSON.parse(responseText);
     } catch (e) {
       // Si no es JSON válido, considerar éxito si status 200
       console.warn("Respuesta no es JSON válido:", responseText.substring(0, 100));
-      data = { 
+      dataPedido = { 
         success: true, 
         pedido_id: "pedido registrado",
         warning: "Confirmación del servidor con error, pero datos guardados"
       };
     }
 
-    if (data.success || res.status === 200) {
-      const pedidoID = data.pedido_id || "confirmado";
-      const mensaje = data.warning 
-        ? `✓ Pedido ${pedidoID} registrado (con nota del servidor)`
-        : `✓ ¡Pedido ${pedidoID} creado exitosamente!`;
-      
-      if (toast) toast.exito(mensaje);
-      
-      // Limpiar carrito
-      window.carrito.length = 0;
-      guardarCarrito();
-      
-      // Limpiar formulario
-      document.getElementById("formularioPedido").reset();
-      
-      // Revertir botón con confirmación visual
-      if (btnFinalizar) {
-        btnFinalizar.textContent = "✓ Pedido Enviado";
-      }
-      
-      // Renderizar carrito vacío
-      renderizarCarritoPage();
-      actualizarResumen();
+    if (!(dataPedido.success || resCrearPedido.status === 200)) {
+      throw new Error(dataPedido.error || dataPedido.mensaje || "Error al crear pedido");
+    }
 
-      // Mostrar modal de confirmación
-      mostrarModalConfirmacion(mensaje);
-      
-      // Restaurar texto del botón
-      if (btnFinalizar) {
-        btnFinalizar.textContent = btnOriginalText;
-        btnFinalizar.disabled = false;
-      }
+    const pedidoID = dataPedido.pedido_id || "confirmado";
+    const datosCliente = { nombre, ciudad, telefono, notas };
+
+    // Actualizar UI
+    if (btnFinalizar) {
+      btnFinalizar.textContent = "📄 Generando PDFs...";
+    }
+
+    // 2. GENERAR PDF PARA CLIENTE (Cloudflare Worker)
+    if (btnFinalizar) {
+      btnFinalizar.textContent = "📄 Generando PDF...";
+    }
+
+    const resGenerarPdf = await generarYDescargarPdfCliente(pedidoID, datosCliente, carrito, total);
+
+    if (!resGenerarPdf.success) {
+      console.warn("Advertencia: No se pudo generar PDF del cliente:", resGenerarPdf.error);
     } else {
-      throw new Error(data.error || data.mensaje || "Error al crear pedido");
+      console.log("✓ PDF del cliente generado");
+    }
+
+    // 3. ENVIAR NOTIFICACIÓN A BODEGA (correo HTML sin adjunto)
+    if (btnFinalizar) {
+      btnFinalizar.textContent = "📧 Notificando a bodega...";
+    }
+
+    const resEnvioBodega = await enviarNotificacionBodega(pedidoID, datosCliente, carrito);
+
+    if (!resEnvioBodega.success) {
+      console.warn("Advertencia: No se pudo enviar a bodega:", resEnvioBodega.error || resEnvioBodega.warning);
+    } else {
+      console.log("✓ Bodega notificada");
+    }
+
+    // ÉXITO FINAL
+    const mensaje = `✓ ¡Pedido ${pedidoID} creado exitosamente!\n📄 PDF generado\n📧 Bodega notificada`;
+    
+    // Limpiar carrito
+    vaciarCarritoCompleto();
+    
+    // Limpiar formulario
+    document.getElementById("formularioPedido").reset();
+    
+    // Revertir botón con confirmación visual
+    if (btnFinalizar) {
+      btnFinalizar.textContent = "✓ Pedido Enviado";
+    }
+    
+    // Renderizar carrito vacío
+    renderizarCarritoPage();
+    actualizarResumen();
+
+    // Mostrar modal de confirmación
+    mostrarModalConfirmacion(mensaje);
+    
+    // Restaurar texto del botón
+    if (btnFinalizar) {
+      btnFinalizar.textContent = btnOriginalText;
+      btnFinalizar.disabled = false;
     }
   } catch (error) {
     console.error("Error enviando pedido:", error);
@@ -257,6 +293,78 @@ async function finalizarPedidoCarritoPage() {
       btnFinalizar.disabled = false;
       btnFinalizar.textContent = btnOriginalText;
     }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// GENERAR Y DESCARGAR PDF DESDE CLOUDFLARE WORKER
+// ═══════════════════════════════════════════════════════════════════════
+
+async function generarYDescargarPdfCliente(pedidoID, cliente, items, total) {
+  try {
+    const res = await fetch(API_PDF_WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "generarPdfPedido",
+        key: API_KEY,
+        pedido_id: pedidoID,
+        cliente: cliente,
+        items: items,
+        total: total,
+        conPrecios: true
+      })
+    });
+
+    if (!res.ok) {
+      return { success: false, error: `HTTP ${res.status}` };
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Pedido_${pedidoID}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error generando PDF cliente:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ENVIAR NOTIFICACIÓN A BODEGA (CORREO HTML SIN ADJUNTO)
+// ═══════════════════════════════════════════════════════════════════════
+
+async function enviarNotificacionBodega(pedidoID, cliente, items) {
+  try {
+    const res = await fetch(API_PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "enviarNotificacionBodega",
+        key: API_KEY,
+        pedido_id: pedidoID,
+        cliente: cliente,
+        items: items
+      })
+    });
+
+    const data = await res.json();
+
+    if (data.success || data.warning) {
+      return { success: true, message: data.message || data.warning };
+    } else {
+      return { success: false, error: data.error || "Error desconocido" };
+    }
+  } catch (error) {
+    console.error("Error enviando notificación a bodega:", error);
+    return { success: false, error: error.message };
   }
 }
 
@@ -277,6 +385,7 @@ function cerrarModalConfirmacion() {
   const modal = document.getElementById("pedidoConfirmacionModal");
   if (modal) modal.style.display = "none";
   document.body.style.overflow = "auto";
+  vaciarCarritoCompleto();
   window.location.href = "index.html";
 }
 
@@ -304,9 +413,7 @@ document.addEventListener("keydown", (e) => {
 
 function limpiarCarritoPage() {
   if (confirm("¿Estás seguro de que deseas vaciar tu carrito?")) {
-    // Vaciar el array global manteniendo la referencia
-    window.carrito.splice(0, window.carrito.length);
-    guardarCarrito();
+    vaciarCarritoCompleto();
     renderizarCarritoPage();
     actualizarResumen();
     if (toast) toast.info("Carrito vaciado");
@@ -319,6 +426,16 @@ function limpiarCarritoPage() {
 
 function guardarCarrito() {
   localStorage.setItem("carrito", JSON.stringify(window.carrito));
+}
+
+function vaciarCarritoCompleto() {
+  if (Array.isArray(window.carrito)) {
+    window.carrito.splice(0, window.carrito.length);
+  } else {
+    window.carrito = [];
+  }
+  localStorage.removeItem("carrito");
+  guardarCarrito();
 }
 
 // ═══════════════════════════════════════════════════════════════════════

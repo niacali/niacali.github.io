@@ -12,7 +12,7 @@ if (window.location.pathname.includes('admin.html') || document.getElementById('
 // CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzQfUpINrLCUNynW1bc-AUhX8ib4vMiQnd9T_ZWMdg0XV8Ix16rCmzfUl-2joDLtaaa_A/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxdtQDIQdXZz5fK_Diyh88KsDWmEGmtJ62Um0OeBXjnacj-vwWokjQFW6_r5s-TyfDhcg/exec";
 const API_KEY = "TIENDA_API_2026";
 const CLOUDFLARE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
 const LIMIT = 20;
@@ -23,12 +23,21 @@ const LIMIT = 20;
 
 let page = 0;
 let categoriaSeleccionada = null; // Cambiar de 'categoria' a 'categoriaSeleccionada' y usar objeto
-let carrito = JSON.parse(localStorage.getItem("carrito")) || [];
-// Normalizar IDs del carrito para asegurar que son números
-carrito = carrito.map(item => ({
-  ...item,
-  id: Number(item.id)
-}));
+function normalizarCarrito(items) {
+  const base = Array.isArray(items) ? items : [];
+  return base.map(item => ({
+    ...item,
+    id: Number(item.id)
+  }));
+}
+
+let carrito = normalizarCarrito(JSON.parse(localStorage.getItem("carrito")) || []);
+
+function sincronizarCarritoDesdeStorage() {
+  carrito = normalizarCarrito(JSON.parse(localStorage.getItem("carrito")) || []);
+  renderCarrito();
+  actualizarBadgeCarrito();
+}
 
 const productosDiv = document.getElementById("productos");
 const pageInfo = document.getElementById("pageInfo");
@@ -39,6 +48,16 @@ const paginacion = document.getElementById("paginacion");
 const categoriasBtn = document.getElementById("categoriasBtn");
 const categoriaBreadcrumb = document.getElementById("categoriaBreadcrumb");
 const carritoToggle = document.getElementById("carritoToggle");
+
+window.addEventListener("pageshow", () => {
+  sincronizarCarritoDesdeStorage();
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    sincronizarCarritoDesdeStorage();
+  }
+});
 
 // Cache Frontend
 const cache = {
@@ -1036,10 +1055,14 @@ if (productosDiv) { // Solo inicializar si estamos en index.html
 // SERVICIOS PRÁCTICOS
 // ═══════════════════════════════════════════════════════════════════════
 
-// Auto guardar carrito cada 30 segundos (por si acaso)
-setInterval(() => {
-  localStorage.setItem("carrito", JSON.stringify(carrito));
-}, 30000);
+// Mantener carrito sincronizado entre pestañas/sesiones sin sobrescribir vacío
+window.addEventListener("storage", (event) => {
+  if (event.key === "carrito") {
+    sincronizarCarritoDesdeStorage();
+  }
+});
+
+// Sincronización periódica desactivada: se guarda solo en acciones del usuario
 
 // Detectar conexión offline
 window.addEventListener("online", () => {

@@ -103,6 +103,9 @@
         <button class="admin-tab-btn" data-tab="exportar">
           <span class="material-symbols-outlined">download</span> Exportar
         </button>
+        <button class="admin-tab-btn" data-tab="configuracion">
+          <span class="material-symbols-outlined">settings</span> Configuración
+        </button>
       </div>
 
       <!-- TAB: PEDIDOS -->
@@ -221,6 +224,71 @@
                 📥 Descargar JSON
               </button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: CONFIGURACIÓN -->
+      <section id="tab-configuracion" class="admin-tab-content">
+        <div class="tab-header">
+          <h2>Configuración General</h2>
+        </div>
+
+        <div class="configuracion-seccion">
+          <h3>📧 Configuración de Correos</h3>
+          <p style="color: #666; margin-bottom: 15px;">Configura los correos utilizados en el sistema</p>
+
+          <div class="config-card">
+            <div class="form-group">
+              <label for="correoBodega">Correo de Bodega:</label>
+              <input 
+                id="correoBodega" 
+                type="email" 
+                class="form-input" 
+                placeholder="bodega@empresa.com"
+              >
+              <small style="color: #888; display: block; margin-top: 5px;">
+                Este correo recibirá los formatos de alisting cuando se cree un nuevo pedido
+              </small>
+            </div>
+
+            <div class="modal-actions">
+              <button onclick="guardarCorreoBodega()" class="btn btn-primary">
+                💾 Guardar Correo de Bodega
+              </button>
+              <button onclick="probarCorreoBodega(event)" class="btn btn-outline">
+                📧 Enviar Prueba
+              </button>
+            </div>
+
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;"></div>
+
+            <h4 style="margin: 0 0 10px 0;">🖼️ Gestión de Imágenes</h4>
+            <p style="color: #666; margin-bottom: 15px;">Actualiza las URLs de imágenes basándose en la referencia del producto</p>
+
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+              <p style="margin: 0; font-size: 14px; color: #856404;">
+                <strong>⚠️ Nota:</strong> Esta función buscará imágenes en Google Drive usando la columna "referencia" 
+                de los productos y actualizará la columna "Url_Imagen_Drive" automáticamente.
+              </p>
+            </div>
+
+            <div class="modal-actions">
+              <button id="btnGenerarUrlsImagenes" class="btn btn-primary">
+                🔗 Generar URLs de Imágenes
+              </button>
+            </div>
+
+            <div id="urlGenerationStatus" style="margin-top: 15px; padding: 10px; border-radius: 6px; display: none;"></div>
+          </div>
+        </div>
+
+        <div class="configuracion-seccion">
+          <h3>ℹ️ Información del Sistema</h3>
+          <div class="config-info">
+            <p><strong>Versión:</strong> 2.0</p>
+            <p><strong>Última actualización:</strong> 2026</p>
+            <p><strong>Estado:</strong> <span style="color: #4CAF50; font-weight: bold;">Operativo</span></p>
           </div>
         </div>
       </section>
@@ -457,6 +525,6 @@
   <!-- SCRIPTS -->
   <script src="app.js"></script>
   <script src="sidebar.js"></script>
-  <script src="admin.js"></script>
+  <script src="admin.js?v=2026020201"></script>
 </body>
 </html>

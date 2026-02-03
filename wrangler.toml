@@ -1,0 +1,6 @@
+name = "pedido-pdf"
+main = "cloudflare-worker-pdf-generator.js"
+compatibility_date = "2024-12-01"
+
+[vars]
+API_KEY = "TIENDA_API_2026"

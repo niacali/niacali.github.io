@@ -33,16 +33,10 @@ function doGet(e) {
 
     switch (action) {
       case "getCategorias":
-        Logger.log("Ejecutando getCategorias");
         return jsonOutput(getCategorias());
 
       case "getCategoriasAdmin":
-        Logger.log("Ejecutando getCategoriasAdmin");
         return jsonOutput(getCategoriasAdmin());
-
-      case "testCategorias":
-        Logger.log("Ejecutando test de categorías");
-        return jsonOutput(testCategorias());
 
       case "getProductos":
         return jsonOutput(getProductos(e.parameter));
@@ -51,12 +45,13 @@ function doGet(e) {
         return jsonOutput(getProducto(e.parameter.id));
 
       case "getPedidos":
-        Logger.log("Ejecutando getPedidos");
         return jsonOutput(getPedidos());
 
       case "getPedidoDetalle":
-        Logger.log("Ejecutando getPedidoDetalle");
         return jsonOutput(getPedidoDetalle(e.parameter.idPedido));
+
+      case "obtenerConfiguracion":
+        return jsonOutput(obtenerConfiguracion());
 
       default:
         throw "Acción GET no válida: " + action;
@@ -76,7 +71,6 @@ function doOptions() {
     .setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-
 function doPost(e) {
   try {
     if (!e.postData || !e.postData.contents) {
@@ -89,6 +83,7 @@ function doPost(e) {
       throw new Error("API KEY inválida");
     }
 
+    // Gestión de categorías
     if (data.action === "upsertCategoria") {
       return jsonOutput(upsertCategoria(data.categoria));
     }
@@ -97,40 +92,49 @@ function doPost(e) {
       return jsonOutput(deleteCategoria(data.id));
     }
 
-    // Fallback: crear pedido (compatibilidad)
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName("pedidos");
-
-    // Obtener el sheet y calcular el próximo número de pedido
-    const lastRow = sheet.getLastRow();
-    let nextNum = 1;
-    if (lastRow > 1) {
-      const lastNum = sheet.getRange(lastRow, 1).getValue();
-      if (!isNaN(Number(lastNum))) nextNum = Number(lastNum) + 1;
+    // Notificación a bodega (unificado)
+    if (data.action === "enviarNotificacionBodega" || data.action === "enviarPedidoABodega") {
+      return jsonOutput(enviarNotificacionBodega(data.pedido_id, data.cliente, data.items));
     }
 
-    sheet.appendRow([
-      nextNum,
-      new Date(),
-      data.cliente.nombre,
-      data.cliente.ciudad,
-      data.total
-    ]);
+    // Configuración
+    if (data.action === "guardarConfiguracion") {
+      return jsonOutput(guardarConfiguracion(data.config));
+    }
 
-    // Guardar en hoja de detalle con nueva estructura
-    const ss2 = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const detalleSheet = ss2.getSheetByName("pedido_detalle");
+    // Generar URLs de imágenes
+    if (data.action === "generarUrlsImagenes") {
+      const resultado = generarUrlsImagenes();
+      return jsonOutput(resultado);
+    }
+
+    // Fallback: crear pedido usando crearPedido() con contador Config
+    // Solo se ejecuta si no es ninguna de las acciones anteriores
+    if (!data.cliente) {
+      throw new Error("Acción no reconocida o datos de cliente faltantes");
+    }
+    
+    const resultado = crearPedido({
+      cliente: data.cliente,
+      ciudad: data.cliente.ciudad,
+      items: data.items,
+      total: data.total
+    });
+
+    // Guardar detalle
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const detalleSheet = ss.getSheetByName("pedido_detalle");
     if (detalleSheet) {
       let detalleLastRow = detalleSheet.getLastRow();
       let nextDetalleId = detalleLastRow;
-      data.items.forEach((item, idx) => {
+      data.items.forEach((item) => {
         nextDetalleId++;
-        var total_venta = Number(item.precio) * Number(item.cantidad);
-        var costo_venta = Math.round(total_venta * 0.7 * 100) / 100; // 70% de total_venta, redondeado a 2 decimales
+        const total_venta = Number(item.precio) * Number(item.cantidad);
+        const costo_venta = Math.round(total_venta * 0.7 * 100) / 100;
         detalleSheet.appendRow([
-          nextDetalleId, // id (autonumérico por fila)
-          nextNum, // id_pedido (consecutivo del pedido)
-          item.id || "", // id_producto
+          nextDetalleId,
+          resultado.pedido_id,
+          item.id || "",
           item.nombre,
           item.cantidad,
           item.precio,
@@ -141,24 +145,19 @@ function doPost(e) {
     }
 
     return ContentService
-      .createTextOutput(JSON.stringify({ ok: true, pedido_id: nextNum }))
+      .createTextOutput(JSON.stringify({ ok: true, pedido_id: resultado.pedido_id }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
+    Logger.log("❌ Error en doPost: " + err.message);
     return ContentService
-      .createTextOutput(JSON.stringify({
-        ok: false,
-        error: err.message
-      }))
+      .createTextOutput(JSON.stringify({ success: false, error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-
-
-
 /*********************************
- * VALIDACIONES
+ * VALIDACIONES Y UTILIDADES
  *********************************/
 function validarKey(e) {
   if (e.parameter.key !== API_KEY) {
@@ -166,11 +165,28 @@ function validarKey(e) {
   }
 }
 
-/*********************************
- * ACCESO CENTRALIZADO AL SHEET
- *********************************/
 function getSpreadsheet() {
   return SpreadsheetApp.openById(SPREADSHEET_ID);
+}
+
+function parseJSON(str) {
+  try {
+    return typeof str === "string" ? JSON.parse(str) : str;
+  } catch (e) {
+    return str || [];
+  }
+}
+
+function jsonOutput(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function errorOutput(err) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /*********************************
@@ -182,19 +198,15 @@ function getCategorias() {
     const sheet = ss.getSheetByName(SHEET_CATEGORIAS);
 
     if (!sheet) {
-      Logger.log("⚠️ Hoja 'Categorias' no encontrada");
       return { success: false, items: [], error: "Hoja de categorías no encontrada" };
     }
 
     const data = sheet.getDataRange().getValues();
-
     if (data.length <= 1) {
-      Logger.log("⚠️ Hoja de categorías vacía");
       return { success: true, items: [] };
     }
 
     const headers = data.shift();
-
     const idxId = headers.indexOf("id");
     const idxNombre = headers.indexOf("nombre");
     const idxIcono = headers.indexOf("icono");
@@ -202,7 +214,6 @@ function getCategorias() {
     const idxEstado = headers.indexOf("estado");
 
     if (idxId === -1 || idxNombre === -1) {
-      Logger.log("⚠️ Columnas requeridas no encontradas");
       return { success: false, items: [], error: "Columnas requeridas no encontradas" };
     }
 
@@ -230,19 +241,15 @@ function getCategoriasAdmin() {
     const sheet = ss.getSheetByName(SHEET_CATEGORIAS);
 
     if (!sheet) {
-      Logger.log("⚠️ Hoja 'Categorias' no encontrada");
       return { success: false, items: [], error: "Hoja de categorías no encontrada" };
     }
 
     const data = sheet.getDataRange().getValues();
-
     if (data.length <= 1) {
-      Logger.log("⚠️ Hoja de categorías vacía");
       return { success: true, items: [] };
     }
 
     const headers = data.shift();
-
     const idxId = headers.indexOf("id");
     const idxNombre = headers.indexOf("nombre");
     const idxIcono = headers.indexOf("icono");
@@ -250,7 +257,6 @@ function getCategoriasAdmin() {
     const idxEstado = headers.indexOf("estado");
 
     if (idxId === -1 || idxNombre === -1) {
-      Logger.log("⚠️ Columnas requeridas no encontradas");
       return { success: false, items: [], error: "Columnas requeridas no encontradas" };
     }
 
@@ -302,7 +308,7 @@ function upsertCategoria(categoria) {
     for (let i = 0; i < data.length; i++) {
       const idRow = String(data[i][idxId] || "").toLowerCase().trim();
       if (idRow === idBuscado) {
-        rowIndex = i + 2; // +2 por encabezado y 1-indexed
+        rowIndex = i + 2;
         break;
       }
     }
@@ -364,7 +370,7 @@ function deleteCategoria(id) {
 }
 
 /*********************************
- * PRODUCTOS (CACHE + PAGINACIÓN)
+ * PRODUCTOS
  *********************************/
 function getProductos(params) {
   const offset = Number(params.offset || 0);
@@ -387,7 +393,7 @@ function getProductos(params) {
 
 function cargarProductos() {
   const ss = getSpreadsheet();
-    const sheet = ss.getSheetByName(SHEET_PRODUCTOS);
+  const sheet = ss.getSheetByName(SHEET_PRODUCTOS);
   const data = sheet.getDataRange().getValues();
   const headers = data.shift();
 
@@ -403,7 +409,6 @@ function cargarProductos() {
   }));
 }
 
-
 function cargarProductosPorCategoria(categoria) {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_PRODUCTOS);
@@ -412,7 +417,6 @@ function cargarProductosPorCategoria(categoria) {
 
   const idxEstado = headers.indexOf("estado");
   const idxCategoria = headers.indexOf("categoria");
-
   const idxId = headers.indexOf("id");
   const idxNombre = headers.indexOf("nombre");
   const idxPrecio = headers.indexOf("precio");
@@ -425,11 +429,7 @@ function cargarProductosPorCategoria(categoria) {
     .filter(r => {
       const estado = String(r[idxEstado] || "").toLowerCase().trim();
       const cat = String(r[idxCategoria] || "").toLowerCase().trim();
-
-      const estadoOk = estado === "disponible";
-      const categoriaOk = !catParam || cat === catParam;
-
-      return estadoOk && categoriaOk;
+      return estado === "disponible" && (!catParam || cat === catParam);
     })
     .map(r => ({
       id: r[idxId],
@@ -443,11 +443,6 @@ function cargarProductosPorCategoria(categoria) {
   return items;
 }
 
-
-
-/*********************************
- * PRODUCTO INDIVIDUAL
- *********************************/
 function getProducto(id) {
   if (!id) throw "ID requerido";
 
@@ -457,8 +452,8 @@ function getProducto(id) {
   const headers = data.shift();
 
   const idxId = headers.indexOf("id");
-
   const row = data.find(r => String(r[idxId]) == String(id));
+  
   if (!row) throw "Producto no encontrado";
 
   return {
@@ -474,101 +469,22 @@ function getProducto(id) {
 }
 
 /*********************************
- * CREAR PEDIDO
- *********************************/
-function crearPedido(data) {
-  if (!data.cliente || !data.ciudad || !Array.isArray(data.items)) {
-    throw "Datos de pedido incompletos";
-  }
-
-  const ss = getSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_PEDIDOS);
-  const pedidoId = generarIdPedido();
-
-  // Calcular total si no viene en data
-  let total = data.total || 0;
-  if (!total && data.items && data.items.length > 0) {
-    total = data.items.reduce((sum, item) => {
-      const precio = Number(item.precio || item.precio_unitario || 0);
-      const cantidad = Number(item.cantidad || 1);
-      return sum + (precio * cantidad);
-    }, 0);
-  }
-
-  sheet.appendRow([
-    pedidoId,
-    new Date(),
-    data.cliente,
-    data.ciudad,
-    JSON.stringify(data.items),
-    total,
-    "en proceso"
-  ]);
-
-  return {
-    success: true,
-    pedido_id: pedidoId
-  };
-}
-
-function generarIdPedido() {
-  const ss = getSpreadsheet();
-  let configSheet = ss.getSheetByName(SHEET_CONFIG);
-  
-  // Crear hoja Config si no existe
-  if (!configSheet) {
-    configSheet = ss.insertSheet(SHEET_CONFIG);
-    configSheet.appendRow(["contador", "ultimo_id"]);
-    configSheet.appendRow(["pedidos", 0]);
-  }
-  
-  // Buscar fila de contador de pedidos
-  const data = configSheet.getDataRange().getValues();
-  let filaPedidos = -1;
-  
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === "pedidos") {
-      filaPedidos = i + 1; // +1 porque las filas empiezan en 1
-      break;
-    }
-  }
-  
-  // Si no existe la fila, crearla
-  if (filaPedidos === -1) {
-    configSheet.appendRow(["pedidos", 0]);
-    filaPedidos = configSheet.getLastRow();
-  }
-  
-  // Obtener y actualizar contador
-  const ultimoId = configSheet.getRange(filaPedidos, 2).getValue() || 0;
-  const nuevoId = Number(ultimoId) + 1;
-  configSheet.getRange(filaPedidos, 2).setValue(nuevoId);
-  
-  return nuevoId;
-}
-
-/*********************************
- * OBTENER PEDIDOS
+ * PEDIDOS
  *********************************/
 function getPedidos() {
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_PEDIDOS);
   const data = sheet.getDataRange().getValues();
   
-  if (data.length < 2) return []; // Solo headers
+  if (data.length < 2) return [];
   
   const headers = data.shift();
   
-  // Log para debug
-  Logger.log("Headers en Pedidos: " + JSON.stringify(headers));
-  
-  // Función helper para buscar columna case-insensitive
   const findColumnIndex = (headerName) => {
     const lowerName = String(headerName).toLowerCase().trim();
     return headers.findIndex(h => String(h).toLowerCase().trim() === lowerName);
   };
   
-  // Mapear índices de columnas (case-insensitive)
   const idxId = findColumnIndex("id");
   const idxFecha = findColumnIndex("fecha");
   const idxCliente = findColumnIndex("cliente");
@@ -577,22 +493,14 @@ function getPedidos() {
   const idxTotal = findColumnIndex("total");
   const idxEstado = findColumnIndex("estado");
   
-  Logger.log(`Índices encontrados - id: ${idxId}, fecha: ${idxFecha}, cliente: ${idxCliente}, ciudad: ${idxCiudad}`);
-  
   return data.map((row, index) => {
-    // Obtener ID del row (ahora con índice correcto)
     let pedidoId = idxId >= 0 ? row[idxId] : undefined;
     
-    // Validar: solo usar fallback si ID está completamente vacío
     if (pedidoId === undefined || pedidoId === null || String(pedidoId).trim() === "") {
-      // Generar ID temporal numérico basado en índice
       pedidoId = 9000 + index + 1;
     } else {
-      // Asegurar que sea número si es posible
       const numId = Number(pedidoId);
-      if (!isNaN(numId)) {
-        pedidoId = numId;
-      }
+      if (!isNaN(numId)) pedidoId = numId;
     }
     
     return {
@@ -607,9 +515,6 @@ function getPedidos() {
   });
 }
 
-/*********************************
- * OBTENER DETALLE DE PEDIDO
- *********************************/
 function getPedidoDetalle(idPedido) {
   if (!idPedido) throw "ID de pedido requerido";
   
@@ -617,11 +522,9 @@ function getPedidoDetalle(idPedido) {
   const sheet = ss.getSheetByName("pedido_detalle");
   const data = sheet.getDataRange().getValues();
   
-  if (data.length < 2) return []; // Solo headers
+  if (data.length < 2) return [];
   
   const headers = data.shift();
-  
-  // Mapear índices de columnas
   const idxIdPedido = headers.indexOf("id_pedido");
   const idxProducto = headers.indexOf("producto");
   const idxPrecio = headers.indexOf("precio_unitario");
@@ -640,16 +543,8 @@ function getPedidoDetalle(idPedido) {
 }
 
 /*********************************
- * UTILIDADES
+ * IMÁGENES
  *********************************/
-function parseJSON(str) {
-  try {
-    return typeof str === "string" ? JSON.parse(str) : str;
-  } catch (e) {
-    return str || [];
-  }
-}
-
 function convertirDriveUrl(url) {
   if (!url) return "";
 
@@ -683,7 +578,6 @@ function servirImagen(fileId) {
       .setHeader("Access-Control-Allow-Origin", "*")
       .setHeader("Cache-Control", "public, max-age=86400");
   } catch (err) {
-    // Si falla, redirigir al formato directo de Drive
     const redirectUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
     return HtmlService.createHtmlOutput(
       `<script>window.location.href="${redirectUrl}"</script>`
@@ -691,236 +585,790 @@ function servirImagen(fileId) {
   }
 }
 
-function json(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader("Access-Control-Allow-Origin", "*")
-    .setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    .setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
-
-
-function jsonOutput(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function errorOutput(err) {
-  return ContentService
-    .createTextOutput(JSON.stringify({
-      success: false,
-      error: err.toString()
-    }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function generarPedidoId(sheet) {
-  const lastRow = sheet.getLastRow();
-
-  if (lastRow < 2) {
-    return `PED-${Utilities.formatDate(new Date(), "GMT-5", "yyyyMMdd")}-0001`;
+/*********************************
+ * NOTIFICACIÓN A BODEGA
+ *********************************/
+function enviarNotificacionBodega(pedidoId, cliente, items) {
+  try {
+    const ss = getSpreadsheet();
+    const configSheet = ss.getSheetByName(SHEET_CONFIG);
+    
+    if (!configSheet) {
+      return { success: false, error: "Hoja de configuración no encontrada" };
+    }
+    
+    const configData = configSheet.getDataRange().getValues();
+    let correoBodega = null;
+    
+    configData.forEach(row => {
+      if (String(row[0]).toLowerCase() === "correo_bodega") {
+        correoBodega = String(row[1]).trim();
+      }
+    });
+    
+    if (!correoBodega) {
+      Logger.log("⚠️ Correo de bodega no configurado");
+      return { success: false, warning: "Correo de bodega no configurado" };
+    }
+    
+    let itemsHtml = '';
+    items.forEach((item) => {
+      itemsHtml += `
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 12px 8px; font-weight: 600;">${item.nombre}</td>
+          <td style="padding: 12px 8px;">${item.categoria || 'Sin categoría'}</td>
+          <td style="padding: 12px 8px; text-align: center; font-weight: 600; font-size: 16px;">${item.cantidad}</td>
+          <td style="padding: 12px 8px; text-align: center; font-size: 20px;">☐</td>
+        </tr>
+      `;
+    });
+    
+    const fechaActual = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const horaActual = new Date().toLocaleTimeString('es-CO');
+    
+    const asunto = `[PEDIDO #${pedidoId}] Alisting de Bodega - ${cliente.nombre}`;
+    const cuerpoHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"></head>
+      <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; background-color: #f5f5f5;">
+        <div style="max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <div style="border-bottom: 3px solid #c62828; padding-bottom: 15px; margin-bottom: 25px;">
+            <h1 style="margin: 0 0 10px 0; color: #c62828; font-size: 24px;">FORMATO DE ALISTING - BODEGA</h1>
+            <p style="margin: 0; color: #666; font-size: 12px;">Generado: ${fechaActual} ${horaActual}</p>
+          </div>
+          
+          <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+            <p style="margin: 8px 0; font-size: 16px;"><strong>Pedido #:</strong> ${pedidoId}</p>
+            <p style="margin: 8px 0; font-size: 16px;"><strong>Cliente:</strong> ${cliente.nombre || 'N/A'}</p>
+            <p style="margin: 8px 0; font-size: 16px;"><strong>Ciudad:</strong> ${cliente.ciudad || 'N/A'}</p>
+            <p style="margin: 8px 0; font-size: 16px;"><strong>Teléfono:</strong> ${cliente.telefono || 'No proporcionado'}</p>
+            ${cliente.notas ? `<p style="margin: 8px 0; font-size: 16px;"><strong>Notas:</strong> ${cliente.notas}</p>` : ''}
+          </div>
+          
+          <h2 style="color: #c62828; margin-top: 25px; margin-bottom: 15px; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px;">ARTÍCULOS A ALISTAR</h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+            <thead>
+              <tr style="background: #c62828; color: white;">
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600;">Producto</th>
+                <th style="padding: 12px 8px; text-align: left; font-weight: 600;">Categoría</th>
+                <th style="padding: 12px 8px; text-align: center; font-weight: 600;">Cantidad</th>
+                <th style="padding: 12px 8px; text-align: center; font-weight: 600;">✓ Alisted</th>
+              </tr>
+            </thead>
+            <tbody>${itemsHtml}</tbody>
+          </table>
+          
+          <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; margin-top: 25px;">
+            <h3 style="margin: 0 0 10px 0; color: #ff9800; font-size: 16px;">INSTRUCCIONES</h3>
+            <ol style="margin: 5px 0; padding-left: 20px; color: #555;">
+              <li>Verificar existencias de cada artículo en inventario</li>
+              <li>Alistar los productos en el orden listado</li>
+              <li>Marcar con un ✓ cada artículo allistado</li>
+              <li>Verificar cantidades antes de empacar</li>
+              <li>Preparar etiqueta de envío con datos del cliente</li>
+            </ol>
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #999;">
+            <p>Documento generado automáticamente desde NIA CALI</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    GmailApp.sendEmail(
+      correoBodega,
+      asunto,
+      "Por favor habilita la visualización de HTML para ver este correo correctamente.",
+      {
+        htmlBody: cuerpoHTML,
+        name: "NIA CALI - Sistema de Pedidos"
+      }
+    );
+    
+    Logger.log("✅ Notificación enviada a bodega: " + correoBodega);
+    return { success: true, message: "Notificación enviada a " + correoBodega };
+  } catch (error) {
+    Logger.log("❌ Error enviando notificación a bodega: " + error.toString());
+    return { success: false, error: error.toString() };
   }
-
-  const lastId = sheet.getRange(lastRow, 1).getValue();
-  const num = Number(lastId.split("-").pop()) + 1;
-
-  return `PED-${Utilities.formatDate(new Date(), "GMT-5", "yyyyMMdd")}-${String(num).padStart(4, "0")}`;
 }
 
-
+/**
+ * FUNCIÓN DE PRUEBA - Autorizar permisos de Gmail
+ */
+function autorizarPermisosGmail() {
+  const datosTest = {
+    pedido_id: "TEST-001",
+    cliente: {
+      nombre: "Cliente de Prueba",
+      ciudad: "Cali",
+      telefono: "3001234567",
+      notas: "Esta es una prueba de autorización"
+    },
+    items: [
+      { nombre: "Producto Test 1", categoria: "Prueba", cantidad: 2, precio: 10000 },
+      { nombre: "Producto Test 2", categoria: "Prueba", cantidad: 1, precio: 5000 }
+    ]
+  };
+  
+  Logger.log("🔑 Iniciando prueba de autorización de Gmail...");
+  const resultado = enviarNotificacionBodega(datosTest.pedido_id, datosTest.cliente, datosTest.items);
+  Logger.log("Resultado: " + JSON.stringify(resultado));
+  return resultado;
+}
 
 /*********************************
- * PRUEBA COMPLETA DEL SISTEMA
+ * CONFIGURACIÓN
  *********************************/
+function obtenerConfiguracion() {
+  try {
+    const ss = getSpreadsheet();
+    const configSheet = ss.getSheetByName(SHEET_CONFIG);
+
+    if (!configSheet) {
+      return {
+        success: true,
+        correo_bodega: null,
+        warning: "Hoja de configuración no encontrada"
+      };
+    }
+
+    const configData = configSheet.getDataRange().getValues();
+    const config = {};
+
+    configData.forEach(row => {
+      if (row.length >= 2) {
+        const clave = String(row[0]).toLowerCase().trim();
+        const valor = String(row[1]).trim();
+        config[clave] = valor;
+      }
+    });
+
+    Logger.log("✓ Configuración cargada: " + JSON.stringify(config));
+
+    return {
+      success: true,
+      correo_bodega: config.correo_bodega || null
+    };
+  } catch (error) {
+    Logger.log("❌ Error obteniendo configuración: " + error.toString());
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+/**
+ * Autorizar permisos de Gmail - EJECUTAR ESTO PRIMERO
+ * Nota: Cuando ejecutes esta función por primera vez, Google te pedirá autorización
+ */
+function autorizarGmail() {
+  Logger.log("🔑 Autorizando permisos de Gmail...");
+  try {
+    const user = Session.getEffectiveUser().getEmail();
+    Logger.log("✅ Usuario actual: " + user);
+    Logger.log("✅ Permisos de Gmail autorizados correctamente");
+    Logger.log("\n💡 Ahora puedes usar probarCorreo() o cualquier función que envíe emails");
+    return { success: true, message: "Permisos autorizados", user: user };
+  } catch (error) {
+    Logger.log("❌ Error: " + error.toString());
+    return { success: false, error: error.toString() };
+  }
+}
+
+/*********************************
+ * PRUEBAS Y DIAGNÓSTICO
+ *********************************/
+
+/**
+ * Prueba completa del sistema por sectores
+ */
 function probarSistema() {
+  Logger.log("=== 🧪 PRUEBA COMPLETA DEL SISTEMA ===\n");
+  
   const resultados = {
-    ok: true,
-    apiKey: { ok: true },
-    categorias: { ok: true, total: 0 },
-    productos: { ok: true, total: 0 },
-    imagenes: { ok: true }
+    timestamp: new Date().toISOString(),
+    sectores: {}
   };
 
-  try {
-    validarKey({ parameter: { key: API_KEY } });
-  } catch (err) {
-    resultados.ok = false;
-    resultados.apiKey = { ok: false, error: String(err) };
-  }
+  // 1. PRUEBA: Configuración
+  resultados.sectores.configuracion = probarConfiguracion();
+  
+  // 2. PRUEBA: Categorías
+  resultados.sectores.categorias = probarCategorias();
+  
+  // 3. PRUEBA: Productos
+  resultados.sectores.productos = probarProductos();
+  
+  // 4. PRUEBA: Imágenes
+  resultados.sectores.imagenes = probarImagenes();
+  
+  // 5. PRUEBA: Envío de correo
+  resultados.sectores.correo = probarCorreo();
 
-  try {
-    validarKey({ parameter: { key: "INVALIDA" } });
+  // 6. PRUEBA: Inserción y contador de pedidos
+  resultados.sectores.pedidos = probarInsercionPedidoTemporal();
+  
+  // Resumen
+  resultados.ok = Object.values(resultados.sectores).every(s => s.ok !== false);
+  if (resultados.sectores.pedidos && resultados.sectores.pedidos.incremento_correcto === false) {
     resultados.ok = false;
-    resultados.apiKey.invalid = { ok: false, error: "No falló con key inválida" };
-  } catch (err) {
-    resultados.apiKey.invalid = { ok: true };
+    Logger.log("⚠️ ALERTA: El contador de pedidos no incrementó correctamente");
+    resultados.alerta_contador = "El contador de pedidos no incrementó correctamente";
   }
-
-  try {
-    const categorias = getCategorias();
-    resultados.categorias.total = categorias.length;
-    resultados.categorias.muestra = categorias.slice(0, 3);
-    if (!categorias.length) {
-      resultados.ok = false;
-      resultados.categorias.ok = false;
-      resultados.categorias.error = "Sin categorías activas";
-    }
-  } catch (err) {
-    resultados.ok = false;
-    resultados.categorias = { ok: false, error: String(err) };
-  }
-
-  let productoMuestra = null;
-  try {
-    const productos = getProductos({ offset: 0, limit: 5, categoria: "" });
-    resultados.productos.total = productos.total || productos.items.length;
-    resultados.productos.muestra = productos.items.slice(0, 3);
-    productoMuestra = productos.items[0] || null;
-    if (!productos.items.length) {
-      resultados.ok = false;
-      resultados.productos.ok = false;
-      resultados.productos.error = "Sin productos";
-    }
-  } catch (err) {
-    resultados.ok = false;
-    resultados.productos = { ok: false, error: String(err) };
-  }
-
-  try {
-    if (!productoMuestra || !productoMuestra.imagen) {
-      resultados.ok = false;
-      resultados.imagenes = { ok: false, error: "Producto sin imagen para prueba" };
-    } else {
-      const urlImagen = convertirDriveUrl(productoMuestra.imagen);
-      const response = UrlFetchApp.fetch(urlImagen, {
-        method: "get",
-        muteHttpExceptions: true
-      });
-      const status = response.getResponseCode();
-      resultados.imagenes = {
-        ok: status === 200,
-        status,
-        url: urlImagen,
-        contentType: response.getHeaders()["Content-Type"] || ""
-      };
-      if (status !== 200) {
-        resultados.ok = false;
-      }
-    }
-  } catch (err) {
-    resultados.ok = false;
-    resultados.imagenes = { ok: false, error: String(err) };
-  }
-
+  
+  Logger.log("\n=== 📊 RESUMEN FINAL ===");
+  Logger.log(JSON.stringify(resultados, null, 2));
+  
   return resultados;
 }
 
-/*********************************
- * PRUEBA DE CATEGORÍAS
- *********************************/
-
-function testCategorias() {
-  Logger.log("🧪 Iniciando prueba de categorías...");
-
+/**
+ * Prueba 1: Configuración
+ */
+function probarConfiguracion() {
+  Logger.log("\n🔧 PRUEBA: CONFIGURACIÓN");
+  Logger.log("─".repeat(50));
+  
   try {
-    // 1. Verificar que la hoja existe
+    const resultado = obtenerConfiguracion();
+    
+    if (!resultado.success) {
+      Logger.log("❌ Error: " + resultado.error);
+      return { ok: false, error: resultado.error };
+    }
+    
+    Logger.log("✅ Configuración obtenida correctamente");
+    Logger.log("   Correo bodega: " + (resultado.correo_bodega || "⚠️ No configurado"));
+    
+    return {
+      ok: true,
+      correo_bodega: resultado.correo_bodega,
+      message: "Configuración accesible"
+    };
+  } catch (error) {
+    Logger.log("❌ Error en probarConfiguracion: " + error.toString());
+    return { ok: false, error: error.toString() };
+  }
+}
+
+/**
+ * Prueba 2: Categorías
+ */
+function probarCategorias() {
+  Logger.log("\n📂 PRUEBA: CATEGORÍAS");
+  Logger.log("─".repeat(50));
+  
+  try {
     const ss = getSpreadsheet();
     const sheet = ss.getSheetByName(SHEET_CATEGORIAS);
-
+    
     if (!sheet) {
-      Logger.log("❌ ERROR: Hoja '" + SHEET_CATEGORIAS + "' no encontrada");
-      Logger.log("📝 Hojas disponibles: " + ss.getSheets().map(s => s.getName()).join(", "));
-      return {
-        ok: false,
-        error: "Hoja no encontrada",
-        hojas_disponibles: ss.getSheets().map(s => s.getName())
-      };
+      Logger.log("❌ Hoja '" + SHEET_CATEGORIAS + "' no encontrada");
+      return { ok: false, error: "Hoja no encontrada" };
     }
-
+    
     Logger.log("✅ Hoja encontrada: " + SHEET_CATEGORIAS);
-
-    // 2. Verificar estructura de datos
+    
     const data = sheet.getDataRange().getValues();
-    Logger.log("📊 Datos crudos obtenidos: " + data.length + " filas");
+    Logger.log("   Filas totales: " + data.length);
+    Logger.log("   Encabezados: " + data[0].join(", "));
+    
+    const resultado = getCategorias();
+    Logger.log("   Categorías activas: " + resultado.items.length);
+    
+    resultado.items.slice(0, 3).forEach(cat => {
+      Logger.log(`   - ${cat.nombre} (${cat.id}): orden=${cat.orden}`);
+    });
+    
+    return {
+      ok: true,
+      total: resultado.items.length,
+      sample: resultado.items.slice(0, 3)
+    };
+  } catch (error) {
+    Logger.log("❌ Error en probarCategorias: " + error.toString());
+    return { ok: false, error: error.toString() };
+  }
+}
 
-    if (data.length === 0) {
-      Logger.log("⚠️ La hoja está vacía");
-      return {
-        ok: false,
-        error: "Hoja vacía",
-        filas: 0
-      };
+/**
+ * Prueba 3: Productos
+ */
+function probarProductos() {
+  Logger.log("\n📦 PRUEBA: PRODUCTOS");
+  Logger.log("─".repeat(50));
+  
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_PRODUCTOS);
+    
+    if (!sheet) {
+      Logger.log("❌ Hoja '" + SHEET_PRODUCTOS + "' no encontrada");
+      return { ok: false, error: "Hoja no encontrada" };
     }
+    
+    Logger.log("✅ Hoja encontrada: " + SHEET_PRODUCTOS);
+    
+    const data = sheet.getDataRange().getValues();
+    Logger.log("   Filas totales: " + data.length);
+    Logger.log("   Encabezados: " + data[0].join(", "));
+    
+    const resultado = getProductos({ offset: 0, limit: 5, categoria: "" });
+    Logger.log("   Productos disponibles: " + resultado.total);
+    Logger.log("   Productos cargados: " + resultado.items.length);
+    
+    resultado.items.slice(0, 3).forEach(prod => {
+      Logger.log(`   - ${prod.nombre}: $${prod.precio} (${prod.categoria})`);
+    });
+    
+    return {
+      ok: true,
+      total: resultado.total,
+      items: resultado.items.length,
+      sample: resultado.items.slice(0, 3)
+    };
+  } catch (error) {
+    Logger.log("❌ Error en probarProductos: " + error.toString());
+    return { ok: false, error: error.toString() };
+  }
+}
 
-    // 3. Verificar encabezados
+/**
+ * Prueba 4: Imágenes
+ */
+function probarImagenes() {
+  Logger.log("\n🖼️ PRUEBA: IMÁGENES");
+  Logger.log("─".repeat(50));
+  
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_PRODUCTOS);
+    const data = sheet.getDataRange().getValues();
+    
+    if (data.length < 2) {
+      Logger.log("⚠️ No hay productos para probar imágenes");
+      return { ok: true, warning: "No hay productos" };
+    }
+    
     const headers = data[0];
-    Logger.log("📋 Encabezados encontrados: " + headers.join(", "));
+    const idxImagen = headers.indexOf("Url_Imagen_Drive");
+    
+    if (idxImagen === -1) {
+      Logger.log("❌ Columna 'Url_Imagen_Drive' no encontrada");
+      return { ok: false, error: "Columna no encontrada" };
+    }
+    
+    Logger.log("✅ Columna de imágenes encontrada");
+    
+    // Encontrar primer producto con imagen
+    let productoConImagen = null;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][idxImagen]) {
+        productoConImagen = data[i];
+        break;
+      }
+    }
+    
+    if (!productoConImagen) {
+      Logger.log("⚠️ Ningún producto tiene imagen");
+      return { ok: true, warning: "Ningún producto con imagen" };
+    }
+    
+    const fileId = extraerFileId(productoConImagen[idxImagen]);
+    Logger.log("   FileId extraído: " + fileId);
+    
+    const proxyUrl = construirProxyUrl(fileId);
+    Logger.log("   URL de proxy: " + proxyUrl.substring(0, 60) + "...");
+    
+    // Intentar acceder a la imagen
+    try {
+      const response = UrlFetchApp.fetch(proxyUrl, { muteHttpExceptions: true });
+      const status = response.getResponseCode();
+      Logger.log("   Status HTTP: " + status);
+      
+      if (status === 200) {
+        Logger.log("✅ Imagen accesible");
+        return { ok: true, status: status, fileId: fileId };
+      } else {
+        Logger.log("⚠️ Imagen no accesible (status " + status + ")");
+        return { ok: true, warning: "Status " + status, fileId: fileId };
+      }
+    } catch (err) {
+      Logger.log("⚠️ Error al acceder a imagen: " + err.toString());
+      return { ok: true, warning: err.toString() };
+    }
+  } catch (error) {
+    Logger.log("❌ Error en probarImagenes: " + error.toString());
+    return { ok: false, error: error.toString() };
+  }
+}
 
-    const requiredHeaders = ["id", "nombre", "icono", "orden", "estado"];
-    const missingHeaders = requiredHeaders.filter(h => headers.indexOf(h) === -1);
+/**
+ * Prueba 5: Envío de correo
+ */
+function probarCorreo() {
+  Logger.log("\n📧 PRUEBA: ENVÍO DE CORREO");
+  Logger.log("─".repeat(50));
+  
+  try {
+    // Obtener correo de bodega
+    const configResult = obtenerConfiguracion();
+    
+    if (!configResult.correo_bodega) {
+      Logger.log("⚠️ Correo de bodega no configurado");
+      return { ok: true, warning: "Correo de bodega no configurado" };
+    }
+    
+    Logger.log("✅ Correo de bodega encontrado: " + configResult.correo_bodega);
+    
+    // Enviar correo de prueba
+    const datosTest = {
+      pedido_id: "TEST-" + new Date().getTime(),
+      cliente: {
+        nombre: "Prueba Automática",
+        ciudad: "Cali",
+        telefono: "3001234567",
+        notas: "Correo de prueba - " + new Date().toLocaleString('es-CO')
+      },
+      items: [
+        { nombre: "Producto Prueba 1", categoria: "Test", cantidad: 2, precio: 50000 },
+        { nombre: "Producto Prueba 2", categoria: "Test", cantidad: 1, precio: 30000 }
+      ]
+    };
+    
+    Logger.log("   Enviando correo de prueba...");
+    const resultado = enviarNotificacionBodega(
+      datosTest.pedido_id,
+      datosTest.cliente,
+      datosTest.items
+    );
+    
+    if (resultado.success) {
+      Logger.log("✅ Correo enviado exitosamente");
+      Logger.log("   Mensaje: " + resultado.message);
+      return { ok: true, success: true, message: resultado.message };
+    } else if (resultado.warning) {
+      Logger.log("⚠️ Advertencia: " + resultado.warning);
+      return { ok: true, warning: resultado.warning };
+    } else {
+      Logger.log("❌ Error al enviar: " + resultado.error);
+      return { ok: false, error: resultado.error };
+    }
+  } catch (error) {
+    Logger.log("❌ Error en probarCorreo: " + error.toString());
+    return { ok: false, error: error.toString() };
+  }
+}
 
-    if (missingHeaders.length > 0) {
-      Logger.log("❌ Faltan columnas requeridas: " + missingHeaders.join(", "));
-      return {
-        ok: false,
-        error: "Columnas faltantes",
-        columnas_faltantes: missingHeaders,
-        columnas_encontradas: headers
-      };
+/*********************************
+ * CREAR PEDIDO
+ *********************************/
+function generarIdPedido() {
+  const ss = getSpreadsheet();
+  const configSheet = ss.getSheetByName(SHEET_CONFIG);
+  
+  if (!configSheet) {
+    throw new Error("Hoja Config no encontrada");
+  }
+  
+  const configData = configSheet.getDataRange().getValues();
+  let filaPedidos = -1;
+  let ultimoId = 0;
+  
+  for (let i = 0; i < configData.length; i++) {
+    if (String(configData[i][0]).toLowerCase().trim() === "pedidos") {
+      filaPedidos = i + 1;
+      ultimoId = Number(configData[i][1] || 0);
+      break;
+    }
+  }
+  
+  if (filaPedidos === -1) {
+    configSheet.appendRow(["pedidos", 1]);
+    return 1;
+  }
+  
+  const nuevoId = ultimoId + 1;
+  configSheet.getRange(filaPedidos, 2).setValue(nuevoId);
+  
+  return nuevoId;
+}
+
+function crearPedido(pedido) {
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_PEDIDOS);
+    
+    if (!sheet) {
+      throw new Error("Hoja Pedidos no encontrada");
+    }
+    
+    const idPedido = generarIdPedido();
+    const fecha = new Date();
+    const cliente = pedido.cliente.nombre || "";
+    const ciudad = pedido.cliente.ciudad || pedido.ciudad || "";
+    const total = pedido.total || 0;
+    const estado = "recibido";
+    
+    sheet.appendRow([
+      idPedido,
+      fecha,
+      cliente,
+      ciudad,
+      total,
+      estado
+    ]);
+    
+    Logger.log(`✅ Pedido creado: #${idPedido}`);
+    
+    return {
+      ok: true,
+      pedido_id: idPedido
+    };
+  } catch (error) {
+    Logger.log("❌ Error en crearPedido: " + error.toString());
+    throw error;
+  }
+}
+
+function probarInsercionPedidoTemporal() {
+  Logger.log("\n🧪 PRUEBA: INSERCIÓN Y LIMPIEZA DE PEDIDO");
+  Logger.log("─".repeat(50));
+
+  try {
+    const ss = getSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_PEDIDOS);
+    if (!sheet) {
+      Logger.log("❌ Hoja 'Pedidos' no encontrada");
+      return { ok: false, error: "Hoja Pedidos no encontrada" };
     }
 
-    Logger.log("✅ Todas las columnas requeridas están presentes");
+    const headers = sheet.getDataRange().getValues()[0].map(h => String(h).toLowerCase().trim());
+    const requeridos = ["id_pedido", "fecha", "cliente", "ciudad", "total", "estado"];
+    const faltantes = requeridos.filter(r => headers.indexOf(r) === -1);
+    if (faltantes.length > 0) {
+      Logger.log("❌ Faltan columnas: " + faltantes.join(", "));
+      return { ok: false, error: "Columnas faltantes", faltantes };
+    }
 
-    // 4. Verificar datos de ejemplo
-    const sampleData = data.slice(1, 4); // Primeras 3 filas de datos
-    Logger.log("📝 Datos de ejemplo:");
-    sampleData.forEach((row, i) => {
-      Logger.log(`  Fila ${i+1}: [${row.join(" | ")}]`);
-    });
+    const configSheet = ss.getSheetByName(SHEET_CONFIG);
+    if (!configSheet) {
+      Logger.log("❌ Hoja Config no encontrada");
+      return { ok: false, error: "Hoja Config no encontrada" };
+    }
 
-    // 5. Probar función getCategorias
-    Logger.log("🔄 Probando getCategorias()...");
-    const resultadoGet = getCategorias();
-    Logger.log("Resultado getCategorias: " + JSON.stringify(resultadoGet, null, 2));
+    const configData = configSheet.getDataRange().getValues();
+    let filaPedidos = -1;
+    for (let i = 1; i < configData.length; i++) {
+      if (String(configData[i][0]).toLowerCase().trim() === "pedidos") {
+        filaPedidos = i + 1;
+        break;
+      }
+    }
 
-    // 6. Probar función getCategoriasAdmin
-    Logger.log("🔄 Probando getCategoriasAdmin()...");
-    const resultadoAdmin = getCategoriasAdmin();
-    Logger.log("Resultado getCategoriasAdmin: " + JSON.stringify(resultadoAdmin, null, 2));
+    if (filaPedidos === -1) {
+      configSheet.appendRow(["pedidos", 0]);
+      filaPedidos = configSheet.getLastRow();
+    }
 
-    // 7. Verificar categorías activas
-    const categoriasActivas = resultadoGet.items ? resultadoGet.items.filter(c => c.estado === "activo") : [];
-    Logger.log("📊 Categorías activas: " + categoriasActivas.length);
+    const ultimoIdAntes = Number(configSheet.getRange(filaPedidos, 2).getValue() || 0);
 
-    categoriasActivas.forEach(cat => {
-      Logger.log(`  - ${cat.nombre} (${cat.id}): icono="${cat.icono}", orden=${cat.orden}`);
-    });
-
-    // 8. Resumen final
-    const resumen = {
-      ok: resultadoGet.success && resultadoAdmin.success,
-      hoja: SHEET_CATEGORIAS,
-      filas_totales: data.length,
-      filas_datos: data.length - 1,
-      columnas: headers.length,
-      categorias_activas: categoriasActivas.length,
-      categorias_totales: resultadoAdmin.items ? resultadoAdmin.items.length : 0,
-      timestamp: new Date().toISOString()
+    const pedidoTest = {
+      cliente: { nombre: "TEST AUTO", ciudad: "Cali" },
+      ciudad: "Cali",
+      items: [
+        { nombre: "Producto Test", cantidad: 1, precio: 1000 }
+      ],
+      total: 1000
     };
 
-    Logger.log("🎉 Prueba completada exitosamente!");
-    Logger.log("📋 Resumen: " + JSON.stringify(resumen, null, 2));
+    const beforeLastRow = sheet.getLastRow();
+    const resultado = crearPedido(pedidoTest);
+    const afterLastRow = sheet.getLastRow();
 
-    return resumen;
+    if (afterLastRow !== beforeLastRow + 1) {
+      Logger.log("❌ No se insertó el pedido correctamente");
+      return { ok: false, error: "Inserción fallida" };
+    }
 
-  } catch (error) {
-    Logger.log("❌ ERROR en testCategorias: " + error.toString());
+    const idxId = headers.indexOf("id_pedido") + 1;
+    const lastId = sheet.getRange(afterLastRow, idxId).getValue();
+
+    if (String(lastId) !== String(resultado.pedido_id)) {
+      Logger.log("⚠️ ID insertado no coincide con resultado");
+    }
+
+    sheet.deleteRow(afterLastRow);
+
+    const ultimoIdDespues = Number(configSheet.getRange(filaPedidos, 2).getValue() || 0);
+    const incrementoCorrecto = ultimoIdDespues === ultimoIdAntes + 1;
+
+    configSheet.getRange(filaPedidos, 2).setValue(ultimoIdAntes);
+
+    Logger.log("✅ Pedido de prueba insertado y eliminado");
+    Logger.log("   Pedido ID: " + resultado.pedido_id);
+
     return {
-      ok: false,
-      error: error.toString(),
-      timestamp: new Date().toISOString()
+      ok: true,
+      pedido_id: resultado.pedido_id,
+      insertado: true,
+      eliminado: true,
+      contador_antes: ultimoIdAntes,
+      contador_despues: ultimoIdDespues,
+      incremento_correcto: incrementoCorrecto
+    };
+  } catch (error) {
+    Logger.log("❌ Error en prueba: " + error.toString());
+    return { ok: false, error: error.toString() };
+  }
+}
+
+function guardarConfiguracion(config) {
+  try {
+    const ss = getSpreadsheet();
+    const configSheet = ss.getSheetByName(SHEET_CONFIG);
+
+    if (!configSheet) {
+      return {
+        success: false,
+        error: "Hoja de configuración no encontrada"
+      };
+    }
+
+    const configData = configSheet.getDataRange().getValues();
+    const headers = configData[0] || ["clave", "valor"];
+
+    for (const [clave, valor] of Object.entries(config)) {
+      const claveNormalizada = clave.toLowerCase().trim();
+      
+      let filaEncontrada = -1;
+      for (let i = 0; i < configData.length; i++) {
+        if (String(configData[i][0]).toLowerCase().trim() === claveNormalizada) {
+          filaEncontrada = i;
+          break;
+        }
+      }
+
+      if (filaEncontrada >= 0) {
+        configSheet.getRange(filaEncontrada + 1, 2).setValue(valor);
+        Logger.log(`✓ Actualizado: ${clave} = ${valor}`);
+      } else {
+        configSheet.appendRow([clave, valor]);
+        Logger.log(`✓ Agregado: ${clave} = ${valor}`);
+      }
+    }
+
+    return {
+      success: true,
+      message: "Configuración guardada correctamente"
+    };
+  } catch (error) {
+    Logger.log("❌ Error guardando configuración: " + error.toString());
+    return {
+      success: false,
+      error: error.toString()
+    };
+  }
+}
+
+function generarUrlsImagenes() {
+  try {
+    const ss = getSpreadsheet();
+    let sheet = ss.getSheetByName("productos");
+    let modoProductos = false;
+
+    if (!sheet) {
+      sheet = ss.getSheetByName(SHEET_PRODUCTOS);
+      modoProductos = true;
+    }
+
+    if (!sheet) {
+      throw new Error("No existe la hoja 'prueba' ni la hoja de productos");
+    }
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+      return {
+        success: false,
+        error: "No hay datos en la hoja"
+      };
+    }
+
+    const data = sheet.getDataRange().getValues();
+    let idxCodigo = 0;
+    let idxUrlImagen = 4;
+
+    if (modoProductos) {
+      const headers = data[0];
+      const candidatosCodigo = ["referencia", "codigo", "id", "sku"];
+      const candidatosUrl = ["Url_Imagen_Drive", "url_imagen", "imagen"];
+
+      idxCodigo = headers.findIndex(h => candidatosCodigo.includes(String(h).trim()));
+      idxUrlImagen = headers.findIndex(h => candidatosUrl.includes(String(h).trim()));
+
+      if (idxCodigo === -1 || idxUrlImagen === -1) {
+        return {
+          success: false,
+          error: "No se encontraron las columnas de código o URL de imagen"
+        };
+      }
+    }
+
+    // Indexar imágenes del Drive
+    const folder = DriveApp.getFolderById(DRIVE_IMAGES_FOLDER_ID);
+    const files = folder.getFiles();
+    const index = {};
+
+    while (files.hasNext()) {
+      const file = files.next();
+      if (!file.getMimeType().startsWith("image/")) continue;
+
+      const nombreSinExt = file
+        .getName()
+        .replace(/\.[^/.]+$/, "")
+        .trim();
+
+      index[nombreSinExt] = file.getId();
+    }
+
+    // Actualizar URLs
+    let actualizados = 0;
+    let noEncontrados = 0;
+
+    for (let i = 1; i < data.length; i++) {
+      const ref = String(data[i][idxCodigo] || "").trim();
+      if (!ref) continue;
+
+      const fileId = index[ref];
+      if (fileId) {
+        const url = `https://drive.google.com/file/d/${fileId}/view?usp=drive_link`;
+        sheet.getRange(i + 1, idxUrlImagen + 1).setValue(url);
+        actualizados++;
+      } else {
+        sheet.getRange(i + 1, idxUrlImagen + 1).setValue("");
+        noEncontrados++;
+      }
+    }
+
+    Logger.log(`✓ URLs generadas: ${actualizados} actualizadas, ${noEncontrados} no encontradas`);
+
+    return {
+      success: true,
+      actualizados: actualizados,
+      noEncontrados: noEncontrados,
+      message: `URLs generadas: ${actualizados} actualizadas, ${noEncontrados} no encontradas`
+    };
+  } catch (error) {
+    Logger.log("❌ Error generando URLs de imágenes: " + error.toString());
+    return {
+      success: false,
+      error: error.toString()
     };
   }
 }

@@ -6,7 +6,8 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzQfUpINrLCUNynW1bc-AUhX8ib4vMiQnd9T_ZWMdg0XV8Ix16rCmzfUl-2joDLtaaa_A/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxdtQDIQdXZz5fK_Diyh88KsDWmEGmtJ62Um0OeBXjnacj-vwWokjQFW6_r5s-TyfDhcg/exec";
+const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -788,8 +789,13 @@ window.imprimirPedidoActual = imprimirPedidoActual;
 
 // Funciones de categorías
 window.abrirFormCategoria = abrirFormCategoria;
+window.abrirEditarCategoria = abrirEditarCategoria;
+window.editarCategoria = editarCategoria;
 window.cerrarModalEditarCategoria = cerrarModalEditarCategoria;
 window.guardarCambioCategoria = guardarCambioCategoria;
+window.eliminarCategoria = eliminarCategoria;
+window.verCategoria = verCategoria;
+window.desactivarCategoria = desactivarCategoria;
 
 // Funciones de productos
 window.abrirFormProducto = abrirFormProducto;
@@ -874,6 +880,76 @@ function eliminarCategoria(index) {
     })
     .catch(error => {
       console.error("Error eliminando categoría:", error);
+      if (toast) toast.error("Error de conexión");
+    });
+}
+
+function verCategoria(categoriaOrIndex) {
+  if (typeof categoriaOrIndex === "number") {
+    const cat = categoriasAdmin[categoriaOrIndex];
+    if (!cat) return;
+    if (typeof editarCategoria === "function") {
+      editarCategoria(cat);
+    } else if (typeof abrirEditarCategoria === "function") {
+      abrirEditarCategoria(categoriaOrIndex);
+    }
+    return;
+  }
+
+  if (categoriaOrIndex && typeof categoriaOrIndex === "object") {
+    if (typeof editarCategoria === "function") {
+      editarCategoria(categoriaOrIndex);
+    }
+  }
+}
+
+function desactivarCategoria(categoriaOrIndex) {
+  const cat = typeof categoriaOrIndex === "number"
+    ? categoriasAdmin[categoriaOrIndex]
+    : categoriaOrIndex;
+
+  if (!cat) return;
+  if (!confirm("¿Deseas desactivar esta categoría?")) return;
+
+  const categoriaPayload = {
+    id: cat.id,
+    nombre: cat.nombre,
+    icono: cat.icono || "",
+    orden: cat.orden || 0,
+    estado: "inactivo"
+  };
+
+  fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      key: API_KEY,
+      action: "upsertCategoria",
+      categoria: categoriaPayload
+    })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.ok || data.success) {
+        if (typeof categoriaOrIndex === "number" && categoriasAdmin[categoriaOrIndex]) {
+          categoriasAdmin[categoriaOrIndex].estado = "inactivo";
+        }
+        if (typeof renderizarCategoriasAdmin === "function") {
+          renderizarCategoriasAdmin();
+        }
+        if (typeof mostrarCategoriasAdmin === "function") {
+          mostrarCategoriasAdmin(categoriasAdmin);
+        }
+        if (typeof cargarCategoriasAdmin === "function") {
+          cargarCategoriasAdmin();
+        }
+        if (toast) toast.exito("Categoría desactivada");
+      } else {
+        if (toast) toast.error(data.error || data.mensaje || "No se pudo desactivar");
+      }
+    })
+    .catch(error => {
+      console.error("Error desactivando categoría:", error);
       if (toast) toast.error("Error de conexión");
     });
 }
@@ -1203,11 +1279,226 @@ function cerrarModalEditarCategoria() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN - CORREO BODEGA
+// ═══════════════════════════════════════════════════════════════════════
+
+async function guardarCorreoBodega() {
+  const correoBodega = document.getElementById("correoBodega").value.trim();
+
+  if (!correoBodega) {
+    alert("Por favor ingresa un correo válido");
+    return;
+  }
+
+  // Validar formato de correo
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(correoBodega)) {
+    alert("Por favor ingresa un correo válido");
+    return;
+  }
+
+  try {
+    const response = await fetch(API_PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "guardarConfiguracion",
+        key: API_KEY,
+        config: {
+          correo_bodega: correoBodega
+        }
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert("✓ Correo de bodega guardado correctamente");
+      // Guardar también en localStorage como respaldo
+      localStorage.setItem("correo_bodega", correoBodega);
+    } else {
+      alert("Error al guardar: " + (data.error || "Desconocido"));
+    }
+  } catch (error) {
+    console.error("Error guardando correo de bodega:", error);
+    alert("Error de conexión. El correo se guardará localmente.");
+    // Guardar localmente como respaldo
+    localStorage.setItem("correo_bodega", correoBodega);
+  }
+}
+
+async function cargarCorreoBodega() {
+  try {
+    // Primero intentar cargar del localStorage
+    const correoBodegaLocal = localStorage.getItem("correo_bodega");
+    if (correoBodegaLocal) {
+      document.getElementById("correoBodega").value = correoBodegaLocal;
+      return;
+    }
+
+    const response = await fetch(API_PROXY_URL + "?action=obtenerConfiguracion&key=" + API_KEY);
+    const data = await response.json();
+
+    if (data.success && data.correo_bodega) {
+      document.getElementById("correoBodega").value = data.correo_bodega;
+      localStorage.setItem("correo_bodega", data.correo_bodega);
+    }
+  } catch (error) {
+    console.warn("No se pudo cargar configuración desde servidor:", error);
+  }
+}
+
+async function generarUrlsImagenes(event) {
+  console.log("🚀 Iniciando generarUrlsImagenes", event);
+  const btn = event?.target || document.querySelector("button[onclick*='generarUrlsImagenes']");
+  const statusDiv = document.getElementById("urlGenerationStatus");
+  
+  if (!confirm("¿Estás seguro de que deseas regenerar las URLs de todas las imágenes? Esto actualizará la columna 'Url_Imagen_Drive' en la hoja de productos.")) {
+    console.log("❌ Usuario canceló la operación");
+    return;
+  }
+  
+  console.log("✅ Confirmación recibida, procediendo con la generación...");
+
+  btn.disabled = true;
+  btn.textContent = "🔄 Generando URLs...";
+  
+  if (statusDiv) {
+    statusDiv.style.display = "block";
+    statusDiv.style.background = "#e3f2fd";
+    statusDiv.style.color = "#1976d2";
+    statusDiv.innerHTML = "⏳ Procesando imágenes...";
+  }
+
+  try {
+    console.log("📡 Enviando petición al servidor...", { API_PROXY_URL, action: "generarUrlsImagenes" });
+    const response = await fetch(API_PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "generarUrlsImagenes",
+        key: API_KEY
+      })
+    });
+
+    const data = await response.json();
+    console.log("📦 Respuesta recibida del servidor:", data);
+
+    if (data.success) {
+      if (statusDiv) {
+        statusDiv.style.background = "#d4edda";
+        statusDiv.style.color = "#155724";
+        statusDiv.innerHTML = `
+          ✅ <strong>URLs generadas exitosamente</strong><br>
+          📊 ${data.actualizados} imágenes actualizadas<br>
+          ⚠️ ${data.noEncontrados} referencias no encontradas
+        `;
+      }
+      alert(`✓ ${data.message}`);
+    } else {
+      throw new Error(data.error || "Error desconocido");
+    }
+  } catch (error) {
+    console.error("Error generando URLs:", error);
+    if (statusDiv) {
+      statusDiv.style.background = "#f8d7da";
+      statusDiv.style.color = "#721c24";
+      statusDiv.innerHTML = `❌ Error: ${error.message}`;
+    }
+    alert("Error al generar URLs: " + error.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🔗 Generar URLs de Imágenes";
+  }
+}
+
+async function probarCorreoBodega(event) {
+  const correoBodega = document.getElementById("correoBodega").value.trim();
+
+  if (!correoBodega) {
+    alert("Por favor ingresa un correo de bodega primero");
+    return;
+  }
+
+  const btn = event?.target || document.querySelector("button[onclick*='probarCorreoBodega']");
+  btn.disabled = true;
+  btn.textContent = "📧 Enviando prueba...";
+
+  try {
+    // Crear un pedido de prueba
+    const pedidoPrueba = {
+      pedido_id: "TEST-" + Date.now(),
+      cliente: {
+        nombre: "Prueba Admin",
+        ciudad: "Test",
+        telefono: "0000000000",
+        notas: "Este es un correo de prueba"
+      },
+      items: [
+        {
+          nombre: "Producto de Prueba",
+          categoria: "Test",
+          cantidad: 1,
+          precio: 0
+        }
+      ]
+    };
+
+    const response = await fetch(API_PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "enviarNotificacionBodega",
+        key: API_KEY,
+        pedido_id: pedidoPrueba.pedido_id,
+        cliente: pedidoPrueba.cliente,
+        items: pedidoPrueba.items
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert("✓ Correo de prueba enviado a: " + correoBodega);
+    } else if (data.warning) {
+      alert("⚠ Advertencia: " + data.warning + "\n\nSi aún no has configurado el correo en Google Apps Script, hazlo en el spreadsheet.");
+    } else {
+      alert("Error al enviar: " + (data.error || "Desconocido"));
+    }
+  } catch (error) {
+    console.error("Error enviando correo de prueba:", error);
+    alert("Error de conexión al enviar prueba");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📧 Enviar Prueba";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // INICIALIZACIÓN
 // ═══════════════════════════════════════════════════════════════════════
 
 window.addEventListener("load", () => {
+  window.guardarCorreoBodega = guardarCorreoBodega;
+  window.probarCorreoBodega = probarCorreoBodega;
+  window.cargarCorreoBodega = cargarCorreoBodega;
+  window.generarUrlsImagenes = generarUrlsImagenes;
   verificarAutenticacion();
+  // Cargar configuración cuando se carga la página
+  if (document.getElementById("correoBodega")) {
+    cargarCorreoBodega();
+  }
+
+  const btnGenerar = document.getElementById("btnGenerarUrlsImagenes");
+  if (btnGenerar) {
+    console.log("✅ Vinculando evento al botón de generación de URLs");
+    btnGenerar.addEventListener("click", (event) => {
+      console.log("🔗 Botón clickeado, ejecutando generarUrlsImagenes");
+      generarUrlsImagenes(event);
+    });
+  } else {
+    console.warn("⚠️ No se encontró el botón btnGenerarUrlsImagenes");
+  }
 });
 
 }); // Cerrar DOMContentLoaded
