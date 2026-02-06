@@ -53,6 +53,23 @@
 
   <!-- MAIN CONTENT -->
   <main class="main-content">
+    <!-- BUSCADOR -->
+    <section class="search-section" aria-label="Buscar productos">
+      <div class="search-bar">
+        <span class="material-symbols-outlined search-icon">search</span>
+        <input
+          id="busquedaInput"
+          class="search-input"
+          type="search"
+          placeholder="Buscar por nombre o referencia"
+          autocomplete="off"
+          aria-label="Buscar productos por nombre o referencia"
+        >
+        <button id="busquedaClear" class="search-clear" type="button" title="Limpiar búsqueda" aria-label="Limpiar búsqueda">✕</button>
+      </div>
+      <div id="busquedaInfo" class="search-info" aria-live="polite"></div>
+    </section>
+
     <!-- PRODUCTOS GRID -->
     <section id="categoriasSection" class="categorias-section">
       <h2 class="section-title">Explora por categorías</h2>

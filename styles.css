@@ -440,6 +440,122 @@ body {
   transition: margin-right 0.3s var(--transition-base);
 }
 
+.search-section {
+  margin: 0 0 1.5rem;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.search-icon {
+  color: var(--text-secondary);
+  font-size: 1.35rem;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.search-input::placeholder {
+  color: var(--text-light);
+}
+
+.search-clear {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-dark);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.search-clear:hover {
+  background: var(--surface-darker);
+  color: var(--text-primary);
+}
+
+.search-info {
+  margin-top: 0.5rem;
+  padding-left: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.skeleton-card {
+  pointer-events: none;
+  border-color: var(--border-light);
+  box-shadow: var(--shadow-sm);
+}
+
+.skeleton-img {
+  height: 140px;
+  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(90deg, #f2f2f2 25%, #e6e6e6 37%, #f2f2f2 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f2f2f2 25%, #e6e6e6 37%, #f2f2f2 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-title {
+  width: 70%;
+  margin: 0.6rem 0 0.5rem;
+}
+
+.skeleton-price {
+  width: 40%;
+  margin-bottom: 1rem;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.skeleton-pill {
+  flex: 1;
+  height: 32px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f2f2f2 25%, #e6e6e6 37%, #f2f2f2 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f2f2f2 25%, #e6e6e6 37%, #f2f2f2 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
 .productos-section {
   animation: fadeIn 0.6s ease-out;
 }
@@ -715,16 +831,16 @@ body {
 
 /* Botón compacto solo con icono */
 .btn-compact {
-  width: 45px;
-  height: 40px;
-  min-width: 45px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  width: 52px;
+  height: 46px;
+  min-width: 52px;
+  background: linear-gradient(135deg, #2e7d32, #43a047);
   color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 1.8rem;
+  font-size: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;

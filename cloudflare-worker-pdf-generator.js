@@ -79,7 +79,7 @@ async function buildBasicPdf(payload) {
   
   items.forEach((item, idx) => {
     const num = String(idx + 1).padStart(2, ' ');
-    const producto = (item.nombre || 'Producto').substring(0, 40).padEnd(40, ' ');
+    const producto = (item.nombre || 'Producto').substring(0, 46).padEnd(46, ' ');
     const cantidad = String(item.cantidad || 1).padStart(4, ' ');
     const precioUnit = String(Math.round(item.precio || 0)).padStart(8, ' ');
     const subtotal = String(Math.round((item.cantidad || 1) * (item.precio || 0))).padStart(8, ' ');
@@ -109,7 +109,7 @@ stream
 BT
 /F2 18 Tf
 50 770 Td
-(NIA CALI - PEDIDO DE COMPRA) Tj
+(NIA CALI - ORDEN DE PEDIDO) Tj
 0 -28 Td
 /F1 9 Tf
 (Pedido #: ${pedidoId}) Tj
@@ -125,14 +125,14 @@ BT
 /F2 11 Tf
 (DETALLE DE PRODUCTOS) Tj
 0 -16 Td
-/FC 9 Tf
-(#   Producto                                   Cant    Precio.    Subtotal) Tj
+/FC 10 Tf
+(#   Producto                                             Cant    Precio.    Subtotal) Tj
 0 -12 Td
-(___________________________________________________________________________________) Tj
+(___________________________________________________________________________________________) Tj
 0 -12 Td
 ${itemsTableText}
 0 -16 Td
-(___________________________________________________________________________________) Tj
+(___________________________________________________________________________________________) Tj
 0 -16 Td
 /F2 13 Tf
 (TOTAL: $ ${total.toLocaleString('es-CO')}) Tj

@@ -48,6 +48,36 @@ const paginacion = document.getElementById("paginacion");
 const categoriasBtn = document.getElementById("categoriasBtn");
 const categoriaBreadcrumb = document.getElementById("categoriaBreadcrumb");
 const carritoToggle = document.getElementById("carritoToggle");
+const busquedaInput = document.getElementById("busquedaInput");
+const busquedaClear = document.getElementById("busquedaClear");
+const busquedaInfo = document.getElementById("busquedaInfo");
+
+let textoBusqueda = "";
+
+function normalizarTexto(valor) {
+  return String(valor || "").toLowerCase().trim();
+}
+
+function obtenerReferenciaProducto(producto) {
+  return producto.referencia || producto.ref || producto.codigo || producto.sku || producto.id || "";
+}
+
+function actualizarBusquedaUI(totalResultados) {
+  if (!busquedaInfo) return;
+  if (!textoBusqueda) {
+    busquedaInfo.textContent = "";
+    return;
+  }
+  const total = Number(totalResultados) || 0;
+  busquedaInfo.textContent = total === 0
+    ? "Sin resultados"
+    : `${total} resultado${total === 1 ? "" : "s"}`;
+}
+
+function actualizarBotonLimpiarBusqueda() {
+  if (!busquedaClear) return;
+  busquedaClear.style.display = textoBusqueda ? "inline-flex" : "none";
+}
 
 window.addEventListener("pageshow", () => {
   sincronizarCarritoDesdeStorage();
@@ -273,6 +303,10 @@ function mostrarCategorias() {
 async function irInicioCategorias() {
   categoriaSeleccionada = null;
   page = 0;
+  textoBusqueda = "";
+  if (busquedaInput) busquedaInput.value = "";
+  actualizarBotonLimpiarBusqueda();
+  actualizarBusquedaUI(0);
   mostrarCategorias();
   try {
     // Intentar cargar categorías desde BD
@@ -824,14 +858,37 @@ function cargarImagenDirecta(img, src, fallback) {
 // RENDERIZADO DE PRODUCTOS
 // ═══════════════════════════════════════════════════════════════════════
 
-function render(productos) {
+function renderSkeletonProductos(count = 8) {
+  if (!productosDiv) return;
+  productosDiv.innerHTML = "";
+  const total = Math.max(4, Number(count) || 8);
+
+  for (let i = 0; i < total; i++) {
+    const card = document.createElement("div");
+    card.className = "card skeleton-card";
+    card.innerHTML = `
+      <div class="skeleton-img"></div>
+      <div class="info">
+        <div class="skeleton-line skeleton-title"></div>
+        <div class="skeleton-line skeleton-price"></div>
+        <div class="skeleton-row">
+          <div class="skeleton-pill"></div>
+          <div class="skeleton-circle"></div>
+        </div>
+      </div>
+    `;
+    productosDiv.appendChild(card);
+  }
+}
+
+function render(productos, emptyMessage = "No hay productos en esta categoría") {
   productosDiv.innerHTML = "";
 
   if (productos.length === 0) {
     productosDiv.innerHTML = `
       <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: #757575;">
         <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
-        <p>No hay productos en esta categoría</p>
+        <p>${emptyMessage}</p>
       </div>
     `;
     return;
@@ -937,6 +994,16 @@ function activarLazyLoading() {
 
 async function cargar() {
   try {
+    const cacheVigente = cache.productos && Date.now() - cache.timestamp < cache.ttl;
+    if (!cacheVigente && productosDiv) {
+      renderSkeletonProductos(8);
+      pageInfo.textContent = "Cargando...";
+      const prevBtn = document.getElementById("prev");
+      const nextBtn = document.getElementById("next");
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = true;
+    }
+
     const all = await fetchProductos();
 
     if (all.length === 0) {
@@ -950,25 +1017,57 @@ async function cargar() {
       return;
     }
 
-    const filtrados = categoriaSeleccionada
+    const filtradosCategoria = categoriaSeleccionada
       ? all.filter(p => {
-          const prodCat = String(p.categoria || "").toLowerCase().trim();
-          const catNombre = String(categoriaSeleccionada.nombre || "").toLowerCase().trim();
-          const catId = String(categoriaSeleccionada.id || "").toLowerCase().trim();
+          const prodCat = normalizarTexto(p.categoria);
+          const catNombre = normalizarTexto(categoriaSeleccionada.nombre);
+          const catId = normalizarTexto(categoriaSeleccionada.id);
           return prodCat === catNombre || prodCat === catId;
         })
       : all;
 
+    const query = normalizarTexto(textoBusqueda);
+    const baseBusqueda = query ? all : filtradosCategoria;
+    const filtrados = query
+      ? baseBusqueda.filter(p => {
+          const nombre = normalizarTexto(p.nombre);
+          const referencia = normalizarTexto(obtenerReferenciaProducto(p));
+          return nombre.includes(query) || referencia.includes(query);
+        })
+      : baseBusqueda;
+
+    if (query) {
+      categoriaBreadcrumb.innerHTML = `Resultados: <span class="breadcrumb-muted">"${textoBusqueda}"</span>`;
+    } else if (categoriaSeleccionada) {
+      const label = categoriaSeleccionada ? categoriaSeleccionada.nombre : "Todas las categorías";
+      categoriaBreadcrumb.innerHTML = `Categoría: <span class="breadcrumb-muted">${label}</span>`;
+    } else {
+      categoriaBreadcrumb.textContent = "";
+    }
+
+    actualizarBusquedaUI(filtrados.length);
+
+    const totalPages = Math.ceil(filtrados.length / LIMIT);
+    if (totalPages > 0 && page >= totalPages) {
+      page = totalPages - 1;
+    }
+
     const start = page * LIMIT;
     const items = filtrados.slice(start, start + LIMIT);
 
-    const totalPages = Math.ceil(filtrados.length / LIMIT);
-    pageInfo.textContent = `Página ${page + 1} de ${totalPages}`;
+    pageInfo.textContent = filtrados.length === 0 ? "" : `Página ${page + 1} de ${totalPages}`;
 
-    render(items);
+    let emptyMessage = "No hay productos en esta categoría";
+    if (query) {
+      emptyMessage = categoriaSeleccionada
+        ? "No hay productos que coincidan en esta categoría"
+        : "No hay productos que coincidan con tu búsqueda";
+    }
 
-    document.getElementById("prev").disabled = page === 0;
-    document.getElementById("next").disabled = start + LIMIT >= filtrados.length;
+    render(items, emptyMessage);
+
+    document.getElementById("prev").disabled = page === 0 || filtrados.length === 0;
+    document.getElementById("next").disabled = filtrados.length === 0 || start + LIMIT >= filtrados.length;
   } catch (error) {
     console.error("Error en cargar():", error);
     toast.error("Error cargando productos");
@@ -997,6 +1096,46 @@ if (document.getElementById("next")) {
 if (categoriasBtn) {
   categoriasBtn.addEventListener("click", () => {
     irInicioCategorias();
+  });
+}
+
+if (busquedaInput) {
+  busquedaInput.addEventListener("input", () => {
+    textoBusqueda = busquedaInput.value.trim();
+    actualizarBotonLimpiarBusqueda();
+    page = 0;
+
+    if (textoBusqueda) {
+      mostrarProductos();
+      cargar();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    actualizarBusquedaUI(0);
+    if (categoriaSeleccionada) {
+      mostrarProductos();
+      cargar();
+    } else {
+      mostrarCategorias();
+    }
+  });
+}
+
+if (busquedaClear) {
+  busquedaClear.addEventListener("click", () => {
+    textoBusqueda = "";
+    if (busquedaInput) busquedaInput.value = "";
+    actualizarBotonLimpiarBusqueda();
+    actualizarBusquedaUI(0);
+    page = 0;
+
+    if (categoriaSeleccionada) {
+      mostrarProductos();
+      cargar();
+    } else {
+      mostrarCategorias();
+    }
   });
 }
 
