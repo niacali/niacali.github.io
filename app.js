@@ -51,8 +51,10 @@ const carritoToggle = document.getElementById("carritoToggle");
 const busquedaInput = document.getElementById("busquedaInput");
 const busquedaClear = document.getElementById("busquedaClear");
 const busquedaInfo = document.getElementById("busquedaInfo");
+const sortSelect = document.getElementById("sortSelect");
 
 let textoBusqueda = "";
+let ordenProductos = "az";
 
 function normalizarTexto(valor) {
   return String(valor || "").toLowerCase().trim();
@@ -60,6 +62,21 @@ function normalizarTexto(valor) {
 
 function obtenerReferenciaProducto(producto) {
   return producto.referencia || producto.ref || producto.codigo || producto.sku || producto.id || "";
+}
+
+function ordenarProductos(items) {
+  const base = Array.isArray(items) ? [...items] : [];
+  switch (ordenProductos) {
+    case "za":
+      return base.sort((a, b) => normalizarTexto(b.nombre).localeCompare(normalizarTexto(a.nombre), "es"));
+    case "precio-asc":
+      return base.sort((a, b) => Number(a.precio || 0) - Number(b.precio || 0));
+    case "precio-desc":
+      return base.sort((a, b) => Number(b.precio || 0) - Number(a.precio || 0));
+    case "az":
+    default:
+      return base.sort((a, b) => normalizarTexto(a.nombre).localeCompare(normalizarTexto(b.nombre), "es"));
+  }
 }
 
 function actualizarBusquedaUI(totalResultados) {
@@ -391,6 +408,9 @@ async function renderCategorias(categoriasData) {
     `;
     card.addEventListener("click", () => {
       categoriaSeleccionada = item; // Almacenar objeto completo
+      if (sortSelect) {
+        ordenProductos = sortSelect.value || "az";
+      }
       page = 0;
       const label = categoriaSeleccionada ? categoriaSeleccionada.nombre : "Todas las categorías";
       categoriaBreadcrumb.innerHTML = `Categoría: <span class="breadcrumb-muted">${label}</span>`;
@@ -870,7 +890,9 @@ function renderSkeletonProductos(count = 8) {
       <div class="skeleton-img"></div>
       <div class="info">
         <div class="skeleton-line skeleton-title"></div>
+        <div class="skeleton-line skeleton-desc"></div>
         <div class="skeleton-line skeleton-price"></div>
+        <div class="skeleton-line skeleton-ref"></div>
         <div class="skeleton-row">
           <div class="skeleton-pill"></div>
           <div class="skeleton-circle"></div>
@@ -907,6 +929,9 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
     const card = document.createElement("div");
     card.className = "card";
 
+    const descripcion = p.descripcion || p.detalle || p.descripcion_producto || "";
+    const referencia = obtenerReferenciaProducto(p);
+
     card.innerHTML = `
       <div class="card-imagen-wrapper" data-img="${proxyUrl || p.imagen}" data-fallback="${fallbackSVG}" style="cursor: pointer; overflow: hidden; border-radius: 12px 12px 0 0;">
         <img
@@ -923,7 +948,9 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
       </div>
       <div class="info">
         <h3>${p.nombre}</h3>
+        <p class="producto-descripcion">${descripcion || "Sin descripcion"}</p>
         <div class="precio">$ ${Number(p.precio).toLocaleString()}</div>
+        <div class="producto-ref">Ref: ${referencia || "N/A"}</div>
 
         <div class="action-row">
           <div class="qty-card-compact">
@@ -1036,6 +1063,8 @@ async function cargar() {
         })
       : baseBusqueda;
 
+    const ordenados = ordenarProductos(filtrados);
+
     if (query) {
       categoriaBreadcrumb.innerHTML = `Resultados: <span class="breadcrumb-muted">"${textoBusqueda}"</span>`;
     } else if (categoriaSeleccionada) {
@@ -1045,17 +1074,17 @@ async function cargar() {
       categoriaBreadcrumb.textContent = "";
     }
 
-    actualizarBusquedaUI(filtrados.length);
+    actualizarBusquedaUI(ordenados.length);
 
-    const totalPages = Math.ceil(filtrados.length / LIMIT);
+    const totalPages = Math.ceil(ordenados.length / LIMIT);
     if (totalPages > 0 && page >= totalPages) {
       page = totalPages - 1;
     }
 
     const start = page * LIMIT;
-    const items = filtrados.slice(start, start + LIMIT);
+    const items = ordenados.slice(start, start + LIMIT);
 
-    pageInfo.textContent = filtrados.length === 0 ? "" : `Página ${page + 1} de ${totalPages}`;
+    pageInfo.textContent = ordenados.length === 0 ? "" : `Página ${page + 1} de ${totalPages}`;
 
     let emptyMessage = "No hay productos en esta categoría";
     if (query) {
@@ -1066,8 +1095,8 @@ async function cargar() {
 
     render(items, emptyMessage);
 
-    document.getElementById("prev").disabled = page === 0 || filtrados.length === 0;
-    document.getElementById("next").disabled = filtrados.length === 0 || start + LIMIT >= filtrados.length;
+    document.getElementById("prev").disabled = page === 0 || ordenados.length === 0;
+    document.getElementById("next").disabled = ordenados.length === 0 || start + LIMIT >= ordenados.length;
   } catch (error) {
     console.error("Error en cargar():", error);
     toast.error("Error cargando productos");
@@ -1135,6 +1164,18 @@ if (busquedaClear) {
       cargar();
     } else {
       mostrarCategorias();
+    }
+  });
+}
+
+if (sortSelect) {
+  sortSelect.addEventListener("change", () => {
+    ordenProductos = sortSelect.value;
+    page = 0;
+
+    if (textoBusqueda || categoriaSeleccionada) {
+      mostrarProductos();
+      cargar();
     }
   });
 }

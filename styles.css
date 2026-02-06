@@ -235,8 +235,8 @@ body {
    ═══════════════════════════════════════════════════════════════════════ */
 
 .header {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-  color: white;
+  background: #ffffff;
+  color: var(--text-primary);
   padding: 1.5rem 2rem;
   box-shadow: var(--shadow-lg);
   position: sticky;
@@ -259,7 +259,20 @@ body {
   font-size: 1.8rem;
   font-weight: 700;
   letter-spacing: -0.5px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  text-shadow: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-primary);
+}
+
+.brand-logo {
+  width: 94px;
+  height: 94px;
+  object-fit: contain;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .header-actions {
@@ -271,20 +284,20 @@ body {
 
 .btn-header {
   padding: 0.6rem 1rem;
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  border: 2px solid var(--primary);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
-  color: white;
+  background: transparent;
+  color: var(--primary-dark);
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition-base);
-  backdrop-filter: blur(10px);
+  backdrop-filter: none;
 }
 
 .btn-header:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(198, 40, 40, 0.08);
+  border-color: var(--primary-dark);
   transform: translateY(-1px);
 }
 
@@ -526,9 +539,19 @@ body {
   margin: 0.6rem 0 0.5rem;
 }
 
+.skeleton-desc {
+  width: 90%;
+  margin-bottom: 0.4rem;
+}
+
 .skeleton-price {
   width: 40%;
   margin-bottom: 1rem;
+}
+
+.skeleton-ref {
+  width: 45%;
+  margin-bottom: 0.9rem;
 }
 
 .skeleton-row {
@@ -558,6 +581,42 @@ body {
 
 .productos-section {
   animation: fadeIn 0.6s ease-out;
+}
+
+.productos-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.sort-control .material-symbols-outlined {
+  font-size: 1.2rem;
+}
+
+.sort-control select {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
 }
 
 .categoria-breadcrumb {
@@ -688,6 +747,18 @@ body {
   min-height: 2.6em;
 }
 
+.producto-descripcion {
+  margin: 0 0 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.7em;
+}
+
 .card .precio {
   color: var(--primary);
   font-weight: 700;
@@ -697,6 +768,12 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.producto-ref {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.6rem;
 }
 
 .qty-card {
@@ -762,7 +839,7 @@ body {
   align-items: center;
   margin-top: auto;
   padding-top: 0.5rem;
-  height: 40px;
+  height: 54px;
   justify-content: space-between;
 }
 
@@ -831,9 +908,9 @@ body {
 
 /* Botón compacto solo con icono */
 .btn-compact {
-  width: 52px;
-  height: 46px;
-  min-width: 52px;
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
   background: linear-gradient(135deg, #2e7d32, #43a047);
   color: white;
   border: none;
@@ -1714,6 +1791,14 @@ select:focus-visible {
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.brand-logo--sidebar {
+  width: 56px;
+  height: 56px;
 }
 
 .sidebar-toggle {
@@ -1800,7 +1885,7 @@ select:focus-visible {
 .btn-menu {
   background: transparent;
   border: none;
-  color: white;
+  color: var(--text-primary);
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 0.5rem;
@@ -1811,7 +1896,7 @@ select:focus-visible {
 }
 
 .btn-menu:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-dark);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -2212,6 +2297,14 @@ select:focus-visible {
   min-width: auto;
   height: auto;
   white-space: nowrap;
+}
+
+.productos-section .btn-compact {
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  padding: 0;
+  font-size: 2rem;
 }
 
 .pedidos-table-wrapper {
