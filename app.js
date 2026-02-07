@@ -12,7 +12,7 @@ if (window.location.pathname.includes('admin.html') || document.getElementById('
 // CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxdtQDIQdXZz5fK_Diyh88KsDWmEGmtJ62Um0OeBXjnacj-vwWokjQFW6_r5s-TyfDhcg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxm3q8xKGQwGLJNlpn8alIpr5rJK0qMws3WsbSXeMec2ic2Q8StcU_PCo9cb5rZtSX4ig/exec";
 const API_KEY = "TIENDA_API_2026";
 const CLOUDFLARE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
 const LIMIT = 20;
@@ -58,6 +58,19 @@ let ordenProductos = "az";
 
 function normalizarTexto(valor) {
   return String(valor || "").toLowerCase().trim();
+}
+
+function obtenerEstadoProducto(producto) {
+  return normalizarTexto(producto && producto.estado ? producto.estado : "disponible");
+}
+
+function productoDisponible(producto) {
+  return obtenerEstadoProducto(producto) === "disponible";
+}
+
+function obtenerEtiquetaEstado(estado) {
+  if (estado === "agotado") return "Agotado";
+  return "No disponible";
 }
 
 function obtenerReferenciaProducto(producto) {
@@ -465,6 +478,11 @@ function actualizarBadgeCarrito() {
 }
 
 function agregarAlCarrito(producto, cantidad) {
+  if (!productoDisponible(producto)) {
+    toast.advertencia("Producto no disponible");
+    return;
+  }
+
   cantidad = Number(cantidad);
   if (cantidad <= 0) {
     toast.advertencia("Cantidad debe ser mayor a 0");
@@ -919,6 +937,9 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
   productos.forEach(p => {
     const proxyUrl = convertirDriveUrlAProxy(p.imagen);
     const fallbackSVG = generarFallbackSVG(p.nombre, p.id);
+    const estado = obtenerEstadoProducto(p);
+    const disponible = estado === "disponible";
+    const etiquetaEstado = disponible ? "" : obtenerEtiquetaEstado(estado);
 
     // Crear objeto producto con imagen procesada
     const productoConProxy = {
@@ -927,13 +948,14 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
     };
 
     const card = document.createElement("div");
-    card.className = "card";
+    card.className = `card${disponible ? "" : " card--no-disponible"}`;
 
     const descripcion = p.descripcion || p.detalle || p.descripcion_producto || "";
     const referencia = obtenerReferenciaProducto(p);
 
     card.innerHTML = `
       <div class="card-imagen-wrapper" data-img="${proxyUrl || p.imagen}" data-fallback="${fallbackSVG}" style="cursor: pointer; overflow: hidden; border-radius: 12px 12px 0 0;">
+        ${disponible ? "" : `<div class="estado-badge">${etiquetaEstado}</div>`}
         <img
           class="card-imagen"
           src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCI+PC9zdmc+"
@@ -954,19 +976,21 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
 
         <div class="action-row">
           <div class="qty-card-compact">
-            <button onclick="cambiarCantidadCard(${p.id}, -1)" title="Disminuir cantidad">−</button>
+            <button onclick="cambiarCantidadCard(${p.id}, -1)" title="Disminuir cantidad" ${disponible ? "" : "disabled"}>−</button>
             <input
               type="number"
               min="1"
               value="1"
               id="qty-${p.id}"
+              ${disponible ? "" : "disabled"}
               aria-label="Cantidad de ${p.nombre}"
             >
-            <button onclick="cambiarCantidadCard(${p.id}, 1)" title="Aumentar cantidad">+</button>
+            <button onclick="cambiarCantidadCard(${p.id}, 1)" title="Aumentar cantidad" ${disponible ? "" : "disabled"}>+</button>
           </div>
           <button class="btn-compact"
             onclick='agregarAlCarrito(${JSON.stringify(productoConProxy)}, document.getElementById("qty-${p.id}").value)'
-            title="Agregar al carrito">
+            title="Agregar al carrito"
+            ${disponible ? "" : "disabled"}>
             🛒
           </button>
         </div>

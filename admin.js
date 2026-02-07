@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxdtQDIQdXZz5fK_Diyh88KsDWmEGmtJ62Um0OeBXjnacj-vwWokjQFW6_r5s-TyfDhcg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxm3q8xKGQwGLJNlpn8alIpr5rJK0qMws3WsbSXeMec2ic2Q8StcU_PCo9cb5rZtSX4ig/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 
@@ -237,21 +237,8 @@ function renderizarPedidosAdmin(lista = pedidosAdmin) {
   pedidosVacio.style.display = "none";
   
   const rows = lista.map((pedido, index) => {
-    // Validar y limpiar datos - ahora espera ID numérico
-    let idPedido = pedido.id;
-    
-    // Convertir a número y validar
-    const idNumerico = Number(idPedido);
-    
-    // Solo usar fallback si el ID es realmente inválido (no es número y no tiene valor)
-    if (isNaN(idNumerico) || (typeof idPedido === 'string' && idPedido.trim() === '')) {
-      idPedido = 9000 + index + 1;
-    } else {
-      // Si es número válido, usarlo directamente
-      idPedido = idNumerico;
-    }
-    
-    const idDisplay = idPedido;
+    const idPedido = pedido.id_pedido ?? pedido.pedido_id ?? pedido.id ?? "";
+    const idDisplay = idPedido !== "" ? idPedido : "N/A";
     
     const estadoRaw = pedido.estado ? String(pedido.estado).trim().toLowerCase() : "";
     const estado = estadoRaw || "en proceso";
@@ -273,8 +260,10 @@ function renderizarPedidosAdmin(lista = pedidosAdmin) {
       }
     }
     
-    const realIndex = pedidosAdmin.findIndex(p => 
-      (p.id && p.id == pedido.id) || 
+    const realIndex = pedidosAdmin.findIndex(p =>
+      (p.id_pedido && pedido.id_pedido && p.id_pedido == pedido.id_pedido) ||
+      (p.pedido_id && pedido.pedido_id && p.pedido_id == pedido.pedido_id) ||
+      (p.id && pedido.id && p.id == pedido.id) ||
       (p.cliente === pedido.cliente && p.fecha === pedido.fecha)
     );
     
@@ -335,7 +324,11 @@ function refrescarPedidos() {
 async function verDetallePedido(idPedido) {
   try {
     // Buscar el pedido en el array
-    const pedido = pedidosAdmin.find(p => p.id == idPedido);
+    const pedido = pedidosAdmin.find(p =>
+      (p.id_pedido && p.id_pedido == idPedido) ||
+      (p.pedido_id && p.pedido_id == idPedido) ||
+      (p.id && p.id == idPedido)
+    );
     
     if (!pedido) {
       if (window.toast) window.toast.error("Pedido no encontrado");
@@ -365,7 +358,7 @@ async function verDetallePedido(idPedido) {
     }
 
     // Actualizar información del pedido en el modal
-    document.getElementById("pedidoId").textContent = pedido.id;
+    document.getElementById("pedidoId").textContent = pedido.id_pedido || pedido.pedido_id || pedido.id;
     document.getElementById("pedidoCliente").textContent = pedido.cliente;
     document.getElementById("pedidoFecha").textContent = pedido.fecha || "N/A";
     document.getElementById("pedidoTotal").textContent = `$ ${Number(pedido.total || 0).toLocaleString()}`;
@@ -469,36 +462,94 @@ function guardarCambioPedido() {
   renderizarPedidosAdmin();
 }
 
-function imprimirPedidoActual() {
+async function imprimirPedidoActual() {
   if (pedidoEnEdicion === null) return;
   const pedido = pedidosAdmin.find(p => p.id == pedidoEnEdicion);
   if (!pedido) return;
-  imprimirPedidoData(pedido);
+  await imprimirPedidoData(pedido);
 }
 
-function imprimirPedido(index) {
+async function imprimirPedido(index) {
   const pedido = pedidosAdmin[index];
-  imprimirPedidoData(pedido);
+  await imprimirPedidoData(pedido);
 }
 
-function imprimirPedidoData(pedido) {
+async function obtenerDetallePedido(idPedido) {
+  try {
+    const response = await fetch(`${API_URL}?action=getPedidoDetalle&key=${API_KEY}&idPedido=${idPedido}`);
+    const data = await response.json();
+
+    if (Array.isArray(data)) return data;
+    if (data.items && Array.isArray(data.items)) return data.items;
+    if (data.data && Array.isArray(data.data)) return data.data;
+    return [];
+  } catch (error) {
+    console.error("Error al obtener detalle del pedido:", error);
+    return [];
+  }
+}
+
+async function imprimirPedidoData(pedido) {
+  const items = await obtenerDetallePedido(pedido.id_pedido || pedido.pedido_id || pedido.id);
+  const filasItems = items.length > 0
+    ? items.map(item => {
+        const nombreItem = item.producto || item.nombre || "Producto";
+        const cantidadItem = Number(item.cantidad || 0);
+        const precioUnitario = Number(item.precio_unitario ?? item.precio ?? 0);
+        const subtotalItem = Number(item.total_venta ?? item.subtotal ?? (precioUnitario * cantidadItem));
+
+        return `
+          <tr>
+            <td>${nombreItem}</td>
+            <td style="text-align: center;">${cantidadItem}</td>
+            <td style="text-align: right;">$ ${precioUnitario.toLocaleString()}</td>
+            <td style="text-align: right;">$ ${subtotalItem.toLocaleString()}</td>
+          </tr>
+        `;
+      }).join("")
+    : `
+        <tr>
+          <td colspan="4" style="text-align: center; padding: 12px; color: #666;">No hay items en este pedido</td>
+        </tr>
+      `;
+
   const contenido = `
-    <h2>PEDIDO #${pedido.id}</h2>
+    <h2>PEDIDO #${pedido.id_pedido || pedido.pedido_id || pedido.id}</h2>
     <p><strong>Cliente:</strong> ${pedido.cliente}</p>
     <p><strong>Ciudad:</strong> ${pedido.ciudad || "N/A"}</p>
     <p><strong>Teléfono:</strong> ${pedido.telefono || "N/A"}</p>
     <p><strong>Dirección:</strong> ${pedido.direccion || "N/A"}</p>
     <p><strong>Fecha:</strong> ${pedido.fecha || "N/A"}</p>
     <p><strong>Estado:</strong> ${pedido.estado || "pendiente"}</p>
-    
     <p><strong>Total:</strong> $ ${Number(pedido.total || 0).toLocaleString()}</p>
+
+    <h3 style="margin-top: 24px;">📦 Items del Pedido</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th style="text-align: center;">Cantidad</th>
+          <th style="text-align: right;">Precio Unit.</th>
+          <th style="text-align: right;">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filasItems}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" style="text-align: right; font-weight: 700;">TOTAL:</td>
+          <td style="text-align: right; font-weight: 700;">$ ${Number(pedido.total || 0).toLocaleString()}</td>
+        </tr>
+      </tfoot>
+    </table>
   `;
 
   const ventana = window.open("", "Imprimir Pedido", "width=800,height=600");
   ventana.document.write(`
     <html>
       <head>
-        <title>Pedido #${pedido.id}</title>
+        <title>Pedido #${pedido.id_pedido || pedido.pedido_id || pedido.id}</title>
         <style>
           body { font-family: Arial; margin: 20px; }
           table { width: 100%; border-collapse: collapse; }

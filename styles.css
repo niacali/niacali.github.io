@@ -693,6 +693,46 @@ body {
   background: linear-gradient(135deg, var(--surface-dark), var(--surface-darker));
 }
 
+.card--no-disponible {
+  opacity: 0.7;
+}
+
+.card--no-disponible .card-imagen {
+  filter: grayscale(0.4) saturate(0.7);
+}
+
+.card--no-disponible .card-imagen-cta {
+  display: none;
+}
+
+.card--no-disponible .btn-compact,
+.card--no-disponible .qty-card-compact button,
+.card--no-disponible .qty-card-compact input {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.card--no-disponible .btn-compact,
+.card--no-disponible .qty-card-compact button {
+  box-shadow: none;
+}
+
+.estado-badge {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 2;
+  background: rgba(198, 40, 40, 0.92);
+  color: #ffffff;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  box-shadow: var(--shadow-sm);
+}
+
 .card-imagen {
   width: 100%;
   height: 140px;
