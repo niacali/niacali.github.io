@@ -955,7 +955,7 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
 
     card.innerHTML = `
       <div class="card-imagen-wrapper" data-img="${proxyUrl || p.imagen}" data-fallback="${fallbackSVG}" style="cursor: pointer; overflow: hidden; border-radius: 12px 12px 0 0;">
-        ${disponible ? "" : `<div class="estado-badge">${etiquetaEstado}</div>`}
+        ${disponible ? "" : `<div class="estado-badge">${etiquetaEstado}</div><div class="estado-overlay">${etiquetaEstado}</div>`}
         <img
           class="card-imagen"
           src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCI+PC9zdmc+"

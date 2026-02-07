@@ -733,6 +733,22 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.estado-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .card-imagen {
   width: 100%;
   height: 140px;
@@ -1369,6 +1385,15 @@ body {
 
   .card {
     animation: none;
+  }
+
+  .card--no-disponible .estado-overlay {
+    display: flex;
+  }
+
+  .card--no-disponible .estado-badge {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.55rem;
   }
 }
 
