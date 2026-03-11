@@ -102,6 +102,10 @@
         return jsonOutput(guardarConfiguracion(data.config));
       }
 
+      if (data.action === "actualizarEstadoPedido") {
+        return jsonOutput(actualizarEstadoPedido(data.idPedido, data.estado));
+      }
+
       // Generar URLs de imágenes
       if (data.action === "generarUrlsImagenes") {
         const resultado = generarUrlsImagenes();
@@ -530,20 +534,132 @@
     
     const headers = data.shift();
     const idxIdPedido = headers.indexOf("id_pedido");
+    const idxIdProducto = headers.indexOf("id_producto");
+    const idxId = headers.indexOf("id");
+    const idxCodigo = headers.indexOf("codigo");
     const idxProducto = headers.indexOf("producto");
     const idxPrecio = headers.indexOf("precio_unitario");
     const idxCantidad = headers.indexOf("cantidad");
     const idxSubtotal = headers.indexOf("subtotal");
+    const idxTotalVenta = headers.indexOf("total_venta");
+    const idxCostoVenta = headers.indexOf("costo_venta");
+
+    const productosSheet = ss.getSheetByName(SHEET_PRODUCTOS);
+    const productosMap = {};
+    if (productosSheet) {
+      const productosData = productosSheet.getDataRange().getValues();
+      if (productosData.length > 1) {
+        const pHeaders = productosData.shift();
+        const pIdxId = pHeaders.indexOf("id");
+        const pIdxNombre = pHeaders.indexOf("nombre");
+        const pIdxReferencia = pHeaders.indexOf("referencia");
+        const pIdxContabilidad = pHeaders.indexOf("contabilidad");
+        const pIdxPrecio2 = pHeaders.indexOf("precio2");
+        const pIdxPrecio1 = pHeaders.indexOf("precio");
+
+        productosData.forEach(pRow => {
+          const key = String(pRow[pIdxId] || "").trim();
+          if (!key) return;
+          productosMap[key] = {
+            nombre: pIdxNombre >= 0 ? pRow[pIdxNombre] : "",
+            referencia: pIdxReferencia >= 0 ? pRow[pIdxReferencia] : "",
+            contabilidad: pIdxContabilidad >= 0 ? pRow[pIdxContabilidad] : "",
+            precio2: pIdxPrecio2 >= 0 ? pRow[pIdxPrecio2] : "",
+            precio1: pIdxPrecio1 >= 0 ? pRow[pIdxPrecio1] : ""
+          };
+        });
+      }
+    }
     
     return data
       .filter(row => String(row[idxIdPedido]) === String(idPedido))
-      .map(row => ({
-        id_pedido: row[idxIdPedido],
-        producto: row[idxProducto],
-        precio_unitario: row[idxPrecio],
-        cantidad: row[idxCantidad],
-        subtotal: row[idxSubtotal]
-      }));
+      .map(row => {
+        const idProducto = idxIdProducto >= 0
+          ? row[idxIdProducto]
+          : (idxCodigo >= 0 ? row[idxCodigo] : (idxId >= 0 ? row[idxId] : ""));
+        const productoInfo = productosMap[String(idProducto || "").trim()] || {};
+
+        return {
+          id_pedido: row[idxIdPedido],
+          id_producto: idProducto,
+          producto: row[idxProducto] || productoInfo.nombre || "",
+          referencia: productoInfo.referencia || "",
+          contabilidad: productoInfo.contabilidad || "",
+          precio2: productoInfo.precio2 || "",
+          precio1: productoInfo.precio1 || "",
+          precio_unitario: row[idxPrecio],
+          cantidad: row[idxCantidad],
+          subtotal: idxSubtotal >= 0 ? row[idxSubtotal] : "",
+          total_venta: idxTotalVenta >= 0 ? row[idxTotalVenta] : "",
+          costo_venta: idxCostoVenta >= 0 ? row[idxCostoVenta] : ""
+        };
+      });
+  }
+
+  function actualizarEstadoPedido(idPedido, nuevoEstado) {
+    if (!idPedido) {
+      return { ok: false, error: "ID de pedido requerido" };
+    }
+
+    if (!nuevoEstado) {
+      return { ok: false, error: "Estado requerido" };
+    }
+
+    try {
+      const ss = getSpreadsheet();
+      const sheet = ss.getSheetByName(SHEET_PEDIDOS);
+
+      if (!sheet) {
+        return { ok: false, error: "Hoja Pedidos no encontrada" };
+      }
+
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 2) {
+        return { ok: false, error: "No hay pedidos registrados" };
+      }
+
+      const normalizarId = (value) => {
+        const raw = String(value ?? "").trim();
+        if (!raw) return "";
+        const sinDecimalFinal = raw.replace(/\.0+$/, "");
+        return sinDecimalFinal.replace(/\s+/g, "");
+      };
+
+      const headers = data.shift().map(h => String(h).toLowerCase().trim());
+      const idxEstado = headers.indexOf("estado");
+      const idxIdPedido = headers.indexOf("id_pedido");
+      const idxPedidoId = headers.indexOf("pedido_id");
+      const idxId = headers.indexOf("id");
+
+      if (idxEstado === -1) {
+        return { ok: false, error: "Columna estado no encontrada" };
+      }
+
+      const idBuscado = normalizarId(idPedido);
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const rowIdPedido = idxIdPedido >= 0 ? row[idxIdPedido] : "";
+        const rowPedidoId = idxPedidoId >= 0 ? row[idxPedidoId] : "";
+        const rowId = idxId >= 0 ? row[idxId] : "";
+        const coincide = [rowIdPedido, rowPedidoId, rowId]
+          .map(normalizarId)
+          .some(idFila => idFila && idFila === idBuscado);
+
+        if (!coincide) continue;
+
+        sheet.getRange(i + 2, idxEstado + 1).setValue(nuevoEstado);
+        return {
+          ok: true,
+          idPedido: idPedido,
+          estado: nuevoEstado,
+          rowUpdated: i + 2
+        };
+      }
+
+      return { ok: false, error: "Pedido no encontrado" };
+    } catch (error) {
+      return { ok: false, error: error.toString() };
+    }
   }
 
   /*********************************
@@ -1171,7 +1287,7 @@
       const cliente = pedido.cliente.nombre || "";
       const ciudad = pedido.cliente.ciudad || pedido.ciudad || "";
       const total = pedido.total || 0;
-      const estado = "recibido";
+      const estado = "pendiente";
       
       sheet.appendRow([
         idPedido,

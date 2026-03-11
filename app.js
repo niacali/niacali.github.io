@@ -12,7 +12,7 @@ if (window.location.pathname.includes('admin.html') || document.getElementById('
 // CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxm3q8xKGQwGLJNlpn8alIpr5rJK0qMws3WsbSXeMec2ic2Q8StcU_PCo9cb5rZtSX4ig/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbywPQrI2A9mT1HxW9WYsHCkI3hrLjnpz4bKckSvrECi9i9-GyAMwSlziBANqu3jF4OkDw/exec";
 const API_KEY = "TIENDA_API_2026";
 const CLOUDFLARE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
 const LIMIT = 20;

@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxm3q8xKGQwGLJNlpn8alIpr5rJK0qMws3WsbSXeMec2ic2Q8StcU_PCo9cb5rZtSX4ig/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbywPQrI2A9mT1HxW9WYsHCkI3hrLjnpz4bKckSvrECi9i9-GyAMwSlziBANqu3jF4OkDw/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 
@@ -20,10 +20,11 @@ function autenticar(event) {
   const username = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value;
 
-  // Credenciales demo (hardcodeadas para evitar problemas de timing)
+  // Credenciales de acceso (hardcodeadas para evitar problemas de timing)
   const usuarios = [
-    { username: "admin@tienda.com", password: "admin123", rol: "admin" },
-    { username: "gerente@tienda.com", password: "gerente123", rol: "gerente" }
+    { username: "admin@niacali.com", password: "admin1234", rol: "admin" },
+    { username: "auxiliar@niacali.com", password: "auxiliar1234", rol: "admin" },
+    { username: "soporte@niacali.com", password: "soporte1234", rol: "admin" }
   ];
 
   // Validar credenciales
@@ -276,14 +277,14 @@ function renderizarPedidosAdmin(lista = pedidosAdmin) {
         <td>$ ${total}</td>
         <td><span class="pedido-estado ${estado}">${estado}</span></td>
         <td class="pedido-row-actions">
-          <button onclick="verDetallePedido('${idPedido}')" class="btn-icon btn-icon-primary" title="Ver detalle">
-            👁️
+          <button onclick="verDetallePedido('${idPedido}')" class="btn-icon btn-icon-view" title="Ver detalle" aria-label="Ver detalle del pedido ${idDisplay}">
+            <span class="material-symbols-outlined btn-icon-symbol">visibility</span>
           </button>
-          <button onclick="imprimirPedido(${realIndex >= 0 ? realIndex : index})" class="btn-icon" title="Imprimir">
-            🖨
+          <button onclick="imprimirPedido(${realIndex >= 0 ? realIndex : index})" class="btn-icon btn-icon-print" title="Imprimir" aria-label="Imprimir pedido ${idDisplay}">
+            <span class="material-symbols-outlined btn-icon-symbol">print</span>
           </button>
-          <button onclick="exportarPedidoCSV(${realIndex >= 0 ? realIndex : index})" class="btn-icon" title="Exportar CSV">
-            📄
+          <button onclick="exportarPedidoCSV(${realIndex >= 0 ? realIndex : index})" class="btn-icon btn-icon-export" title="Exportar CSV" aria-label="Exportar pedido ${idDisplay} en CSV">
+            <span class="material-symbols-outlined btn-icon-symbol">download</span>
           </button>
         </td>
       </tr>
@@ -1012,23 +1013,314 @@ function desactivarCategoria(categoriaOrIndex) {
 // EXPORTAR DATOS
 // ═══════════════════════════════════════════════════════════════════════
 
-function exportarPedidoCSV(index) {
-  const pedido = pedidosAdmin[index];
-  if (!pedido) return;
-  
-  let csv = "ID,Cliente,Ciudad,Teléfono,Fecha,Estado,Total\n";
-  csv += `"${pedido.id || 'N/A'}","${pedido.cliente}","${pedido.ciudad || 'N/A'}","${pedido.telefono || "N/A"}","${pedido.fecha || ""}","${pedido.estado || "pendiente"}",${pedido.total || 0}\n`;
-  
-  descargarArchivo(csv, `pedido_${pedido.id || 'pedido'}.csv`, "text/csv");
+function formatearFechaContable(fechaValor) {
+  const date = new Date(fechaValor);
+  if (!isNaN(date.getTime())) {
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yy = String(date.getFullYear()).slice(-2);
+    return `${dd}${mm}${yy}`;
+  }
+
+  const raw = String(fechaValor || "").trim();
+  const onlyDigits = raw.replace(/\D/g, "");
+  if (onlyDigits.length >= 6) {
+    return onlyDigits.slice(0, 6);
+  }
+
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yy = String(now.getFullYear()).slice(-2);
+  return `${dd}${mm}${yy}`;
 }
 
-function exportarPedidosCSV() {
-  let csv = "ID,Cliente,Ciudad,Teléfono,Fecha,Estado,Total\n";
-  pedidosAdmin.forEach((pedido, index) => {
-    csv += `${index + 1},"${pedido.cliente}","${pedido.ciudad}","${pedido.telefono || "N/A"}","${pedido.fecha || ""}","${pedido.estado || "pendiente"}",${pedido.total || 0}\n`;
+function limpiarCampoCSV(valor) {
+  return String(valor ?? "").replace(/[\r\n;]+/g, " ").trim();
+}
+
+function normalizarFactura(facturaRaw) {
+  const limpia = String(facturaRaw || "").replace(/\D/g, "");
+  if (!limpia || limpia.length > 8) return "";
+  return limpia.padStart(8, "0");
+}
+
+function pedirDatosExportacionCSV(pedido) {
+  const pedidoId = pedido?.id_pedido ?? pedido?.pedido_id ?? pedido?.id ?? "";
+  const cliente = String(pedido?.cliente || "").trim();
+  const ultimoTipoUsado = String(localStorage.getItem("adminExportTipo") || "21").replace(/\D/g, "").slice(0, 2);
+
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.background = "rgba(0,0,0,0.45)";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.zIndex = "9999";
+
+    const modal = document.createElement("div");
+    modal.style.width = "min(92vw, 460px)";
+    modal.style.background = "#ffffff";
+    modal.style.borderRadius = "12px";
+    modal.style.padding = "18px";
+    modal.style.boxShadow = "0 14px 44px rgba(0,0,0,0.22)";
+
+    modal.innerHTML = `
+      <h3 style="margin:0 0 10px 0; font-size:18px;">Exportar CSV Contable</h3>
+      <p style="margin:0 0 14px 0; color:#555; font-size:13px;">Pedido #${limpiarCampoCSV(pedidoId)} - ${limpiarCampoCSV(cliente || "N/A")}</p>
+
+      <label for="exportFacturaInput" style="display:block; margin-bottom:6px; font-size:13px; font-weight:600;">Numero de factura</label>
+      <input id="exportFacturaInput" type="text" placeholder="00002355" style="width:100%; box-sizing:border-box; padding:10px 11px; border:1px solid #d9d9d9; border-radius:8px; margin-bottom:12px;" />
+
+      <label for="exportPrecioSelector" style="display:block; margin-bottom:6px; font-size:13px; font-weight:600;">Precio a usar</label>
+      <select id="exportPrecioSelector" style="width:100%; box-sizing:border-box; padding:10px 11px; border:1px solid #d9d9d9; border-radius:8px; margin-bottom:14px;">
+        <option value="precio1">Precio 1</option>
+        <option value="precio2">Precio 2</option>
+      </select>
+
+      <label for="exportTipoInput" style="display:block; margin-bottom:6px; font-size:13px; font-weight:600;">Tipo (2 digitos)</label>
+      <input id="exportTipoInput" type="text" maxlength="2" inputmode="numeric" placeholder="21" style="width:100%; box-sizing:border-box; padding:10px 11px; border:1px solid #d9d9d9; border-radius:8px; margin-bottom:14px;" />
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button id="exportCancelarBtn" type="button" style="padding:9px 12px; border:1px solid #d0d0d0; background:#fff; border-radius:8px; cursor:pointer;">Cancelar</button>
+        <button id="exportAceptarBtn" type="button" style="padding:9px 12px; border:none; background:#1f7a47; color:#fff; border-radius:8px; cursor:pointer;">Exportar</button>
+      </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const inputFactura = modal.querySelector("#exportFacturaInput");
+    const selectPrecio = modal.querySelector("#exportPrecioSelector");
+    const inputTipo = modal.querySelector("#exportTipoInput");
+    const btnAceptar = modal.querySelector("#exportAceptarBtn");
+    const btnCancelar = modal.querySelector("#exportCancelarBtn");
+
+    inputTipo.value = /^\d{2}$/.test(ultimoTipoUsado) ? ultimoTipoUsado : "21";
+
+    inputFactura.focus();
+
+    const cerrar = (resultado) => {
+      overlay.remove();
+      resolve(resultado);
+    };
+
+    btnCancelar.addEventListener("click", () => cerrar(null));
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) cerrar(null);
+    });
+
+    btnAceptar.addEventListener("click", () => {
+      const factura = normalizarFactura(inputFactura.value);
+      if (!factura || factura === "00000000") {
+        alert("Debes ingresar una factura valida de maximo 8 digitos.");
+        inputFactura.focus();
+        return;
+      }
+
+      const tipo = String(inputTipo.value || "").replace(/\D/g, "");
+      if (!/^\d{2}$/.test(tipo)) {
+        alert("Debes ingresar un Tipo de exactamente 2 digitos.");
+        inputTipo.focus();
+        return;
+      }
+
+      localStorage.setItem("adminExportTipo", tipo);
+
+      const precioSeleccionado = String(selectPrecio.value || "precio1");
+      cerrar({
+        factura,
+        tipo,
+        precioSeleccionado,
+        precioEtiqueta: precioSeleccionado === "precio2" ? "Precio 2" : "Precio 1"
+      });
+    });
+  });
+}
+
+function construirCSVContablePedido(pedido, items, datosContables) {
+  const pedidoId = pedido.id_pedido ?? pedido.pedido_id ?? pedido.id ?? "";
+  const fecha = formatearFechaContable(pedido.fecha);
+  const tipo = String(datosContables.tipo || "21");
+  const envio = `0${tipo}`;
+  const factura = datosContables.factura;
+  const usarPrecio2 = datosContables.precioSeleccionado === "precio2";
+  const comentario = `ped.${pedidoId} ${limpiarCampoCSV(pedido.cliente || "")}`;
+
+  const filas = [];
+
+  const filaControl = Array(13).fill("");
+  filaControl[12] = "1";
+  filas.push(filaControl);
+
+  let registro = 2;
+  let totalCostoVenta = 0;
+  let totalTransaccion = 0;
+
+  items.forEach(item => {
+    const cantidad = Number(item.cantidad || 0);
+    const precio1 = Number(item.precio1 ?? item.precio_unitario ?? item.precio ?? 0);
+    const precio2 = Number(item.precio2 ?? 0);
+    const precioVenta = usarPrecio2 && precio2 > 0 ? precio2 : precio1;
+    const totalVentaItem = cantidad * precioVenta;
+    // Costo por item: precio de venta menos 30%.
+    const costoVentaItem = totalVentaItem * 0.70;
+    const codigoProducto = limpiarCampoCSV(item.contabilidad ?? item.codigo_contable ?? item.id_producto ?? item.id ?? item.codigo ?? "");
+    const referencia = limpiarCampoCSV(item.referencia || "");
+    const nombreBase = limpiarCampoCSV(item.producto || item.nombre || "Producto");
+    const nombreProducto = referencia ? `${nombreBase} Ref:${referencia}` : nombreBase;
+
+    totalTransaccion += totalVentaItem;
+    totalCostoVenta += costoVentaItem;
+
+    filas.push([
+      codigoProducto,
+      fecha,
+      tipo,
+      factura,
+      "",
+      envio,
+      "",
+      costoVentaItem.toFixed(2),
+      nombreProducto,
+      "4",
+      cantidad ? String(cantidad) : "",
+      precioVenta ? String(Math.round(precioVenta)) : "",
+      String(registro)
+    ]);
+
+    registro += 1;
   });
 
-  descargarArchivo(csv, "pedidos.csv", "text/csv");
+  filas.push([
+    "613595",
+    fecha,
+    tipo,
+    factura,
+    comentario,
+    envio,
+    totalCostoVenta.toFixed(2),
+    "",
+    "costo de venta",
+    "",
+    "",
+    "",
+    String(registro)
+  ]);
+  registro += 1;
+
+  filas.push([
+    "41359501",
+    fecha,
+    tipo,
+    factura,
+    comentario,
+    envio,
+    "",
+    totalTransaccion.toFixed(2),
+    "ingresos por venta",
+    "",
+    "",
+    "",
+    String(registro)
+  ]);
+  registro += 1;
+
+  const facturaRem = String(Number(factura) || factura).slice(-5);
+  filas.push([
+    `130505100${facturaRem}`,
+    fecha,
+    tipo,
+    factura,
+    comentario,
+    envio,
+    totalTransaccion.toFixed(2),
+    "",
+    `rem. ${factura}`,
+    "2",
+    "",
+    "",
+    String(registro)
+  ]);
+
+  const body = filas
+    .map(fila => fila.map(campo => limpiarCampoCSV(campo)).join(";"))
+    .join("\n");
+
+  return body;
+}
+
+async function exportarPedidoCSV(index) {
+  const pedido = pedidosAdmin[index];
+  if (!pedido) {
+    if (window.toast) window.toast.error("Pedido no encontrado");
+    return;
+  }
+
+  const datosContables = await pedirDatosExportacionCSV(pedido);
+  if (!datosContables) {
+    return;
+  }
+
+  const idPedido = pedido.id_pedido || pedido.pedido_id || pedido.id;
+  const items = await obtenerDetallePedido(idPedido);
+
+  if (!Array.isArray(items) || items.length === 0) {
+    if (window.toast) window.toast.error("Este pedido no tiene items para exportar");
+    return;
+  }
+
+  const contenidoCSV = construirCSVContablePedido(pedido, items, datosContables);
+  const nombreArchivo = `${datosContables.factura}.csv`;
+  descargarArchivo(contenidoCSV, nombreArchivo, "text/csv;charset=utf-8");
+
+  try {
+    await actualizarEstadoPedidoAdmin(idPedido, "procesando");
+    await cargarPedidosAdmin();
+    if (window.toast) window.toast.info(`Pedido #${idPedido} actualizado a procesando`);
+  } catch (error) {
+    console.error("Error actualizando estado del pedido tras exportar:", error);
+    if (window.toast) window.toast.error(error.message || "No se pudo actualizar el estado del pedido");
+  }
+}
+
+async function exportarPedidosCSV() {
+  if (!Array.isArray(pedidosAdmin) || pedidosAdmin.length === 0) {
+    if (window.toast) window.toast.error("No hay pedidos para exportar");
+    return;
+  }
+
+  const opciones = pedidosAdmin
+    .map((pedido, idx) => {
+      const idPedido = pedido.id_pedido || pedido.pedido_id || pedido.id || `#${idx + 1}`;
+      const cliente = limpiarCampoCSV(pedido.cliente || "N/A");
+      return `${idPedido} (${cliente})`;
+    })
+    .join("\n");
+
+  const idSeleccionado = window.prompt(
+    `Selecciona el pedido a exportar escribiendo su ID:\n\n${opciones}`,
+    String(pedidosAdmin[0].id_pedido || pedidosAdmin[0].pedido_id || pedidosAdmin[0].id || "")
+  );
+
+  if (idSeleccionado === null) {
+    return;
+  }
+
+  const pedido = pedidosAdmin.find(p => {
+    const idPedido = p.id_pedido || p.pedido_id || p.id;
+    return String(idPedido) === String(idSeleccionado).trim();
+  });
+
+  if (!pedido) {
+    if (window.toast) window.toast.error("No se encontró el pedido indicado");
+    return;
+  }
+
+  const index = pedidosAdmin.indexOf(pedido);
+  await exportarPedidoCSV(index);
 }
 
 function exportarPedidosJSON() {
@@ -1062,6 +1354,26 @@ function descargarArchivo(contenido, nombreArchivo, tipo) {
   URL.revokeObjectURL(url);
 
   if (toast) toast.exito(`${nombreArchivo} descargado`);
+}
+
+async function actualizarEstadoPedidoAdmin(idPedido, estado) {
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "actualizarEstadoPedido",
+      key: API_KEY,
+      idPedido,
+      estado
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data || !data.ok) {
+    throw new Error(data?.error || "No se pudo actualizar el estado del pedido");
+  }
+
+  return data;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
