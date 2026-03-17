@@ -32,6 +32,7 @@ function normalizarCarrito(items) {
 }
 
 let carrito = normalizarCarrito(JSON.parse(localStorage.getItem("carrito")) || []);
+var _productosCache = {}; // Cache de objetos producto por ID para evitar JSON en onclick
 
 function sincronizarCarritoDesdeStorage() {
   carrito = normalizarCarrito(JSON.parse(localStorage.getItem("carrito")) || []);
@@ -923,6 +924,7 @@ function renderSkeletonProductos(count = 8) {
 
 function render(productos, emptyMessage = "No hay productos en esta categoría") {
   productosDiv.innerHTML = "";
+  _productosCache = {};
 
   if (productos.length === 0) {
     productosDiv.innerHTML = `
@@ -946,6 +948,7 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
       ...p,
       imagen: proxyUrl || p.imagen || fallbackSVG
     };
+    _productosCache[p.id] = productoConProxy;
 
     const card = document.createElement("div");
     card.className = `card${disponible ? "" : " card--no-disponible"}`;
@@ -988,7 +991,7 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
             <button onclick="cambiarCantidadCard(${p.id}, 1)" title="Aumentar cantidad" ${disponible ? "" : "disabled"}>+</button>
           </div>
           <button class="btn-compact"
-            onclick='agregarAlCarrito(${JSON.stringify(productoConProxy)}, document.getElementById("qty-${p.id}").value)'
+            onclick="agregarAlCarrito(_productosCache[${p.id}], document.getElementById('qty-${p.id}').value)"
             title="Agregar al carrito"
             ${disponible ? "" : "disabled"}>
             🛒
