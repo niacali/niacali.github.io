@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbwyyfV0MA7ga3qWIniLrXKnO0ZZt7l8lG0rA9ySm4QBI5PI7WrWzvYipOYnb2uilHn99g/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz-S0RUi4tdzFa27PwTt2q-OhUW-q7Q0-NnOS1UXdHMluOjeaVZAJRZvH6MEJ1MexO_Bw/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 
@@ -504,40 +504,68 @@ async function imprimirPedido(index) {
 async function reenviarCorreoBodega(index, event) {
   const pedido = pedidosAdmin[index];
   if (!pedido) {
-    if (window.toast) window.toast.error("Pedido no encontrado");
+    const toastAdmin = obtenerToastAdmin();
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error("Pedido no encontrado");
+    } else {
+      alert("Pedido no encontrado");
+    }
     return;
   }
 
-  await reenviarCorreoBodegaData(pedido, event?.currentTarget || event?.target || null);
+  const boton = event?.target?.closest ? event.target.closest("button") : (event?.currentTarget || event?.target || null);
+  await reenviarCorreoBodegaData(pedido, boton);
 }
 
 async function reenviarCorreoBodegaActual(event) {
   if (pedidoEnEdicion === null) {
-    if (window.toast) window.toast.error("No hay pedido seleccionado");
+    const toastAdmin = obtenerToastAdmin();
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error("No hay pedido seleccionado");
+    } else {
+      alert("No hay pedido seleccionado");
+    }
     return;
   }
 
   const pedido = obtenerPedidoAdminPorId(pedidoEnEdicion);
 
   if (!pedido) {
-    if (window.toast) window.toast.error("Pedido no encontrado");
+    const toastAdmin = obtenerToastAdmin();
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error("Pedido no encontrado");
+    } else {
+      alert("Pedido no encontrado");
+    }
     return;
   }
 
-  await reenviarCorreoBodegaData(pedido, event?.currentTarget || event?.target || null);
+  const boton = event?.target?.closest ? event.target.closest("button") : (event?.currentTarget || event?.target || null);
+  await reenviarCorreoBodegaData(pedido, boton);
 }
 
 async function reenviarCorreoBodegaData(pedido, boton) {
+  const toastAdmin = obtenerToastAdmin();
   const idPedido = pedido.id_pedido || pedido.pedido_id || pedido.id;
   if (!idPedido) {
-    if (window.toast) window.toast.error("No se pudo identificar el pedido");
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error("No se pudo identificar el pedido");
+    } else {
+      alert("No se pudo identificar el pedido");
+    }
     return;
   }
 
   const textoOriginal = boton ? boton.textContent : "";
+  const esBotonIcono = Boolean(boton && boton.classList && boton.classList.contains("btn-icon"));
   if (boton) {
     boton.disabled = true;
-    boton.textContent = boton.classList.contains("btn-icon") ? "" : "📤 Reenviando...";
+    boton.setAttribute("aria-busy", "true");
+    if (esBotonIcono) {
+      boton.style.opacity = "0.65";
+    } else {
+      boton.textContent = "📤 Reenviando...";
+    }
   }
 
   try {
@@ -568,23 +596,40 @@ async function reenviarCorreoBodegaData(pedido, boton) {
     const data = await response.json();
 
     if (data.success) {
-      if (window.toast) window.toast.exito(`Correo reenviado a bodega para pedido #${idPedido}`);
+      if (toastAdmin && toastAdmin.exito) {
+        toastAdmin.exito(`Correo reenviado a bodega para pedido #${idPedido}`);
+      } else {
+        alert(`Correo reenviado a bodega para pedido #${idPedido}`);
+      }
       return;
     }
 
     if (data.warning) {
-      if (window.toast) window.toast.info(data.warning);
+      if (toastAdmin && toastAdmin.info) {
+        toastAdmin.info(data.warning);
+      } else {
+        alert(data.warning);
+      }
       return;
     }
 
     throw new Error(data.error || "No se pudo reenviar el correo");
   } catch (error) {
     console.error("Error reenviando correo de bodega:", error);
-    if (window.toast) window.toast.error(`Error al reenviar: ${error.message || error}`);
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error(`Error al reenviar: ${error.message || error}`);
+    } else {
+      alert(`Error al reenviar: ${error.message || error}`);
+    }
   } finally {
     if (boton) {
       boton.disabled = false;
-      boton.textContent = textoOriginal;
+      boton.removeAttribute("aria-busy");
+      if (esBotonIcono) {
+        boton.style.opacity = "";
+      } else {
+        boton.textContent = textoOriginal;
+      }
     }
   }
 }

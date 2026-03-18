@@ -742,11 +742,11 @@
 
         itemsHtml += `
           <tr style="border-bottom: 1px solid #e7e7e7;">
-            <td style="padding: 4px 4px; font-weight: 600; font-size: 11px; line-height: 1.2;">${nombreProducto}</td>
-            <td style="padding: 4px 4px; font-size: 11px; line-height: 1.2;">${codigoContable}</td>
-            <td style="padding: 4px 4px; text-align: right; font-size: 11px; line-height: 1.2; white-space: nowrap;">${precioUnitario}</td>
-            <td style="padding: 4px 4px; text-align: center; font-weight: 600; font-size: 11px; line-height: 1.2;">${item.cantidad || 0}</td>
-            <td style="padding: 4px 4px; text-align: center; font-size: 14px; line-height: 1;">☐</td>
+            <td style="padding: 4px 4px; width: 50%; font-weight: 600; font-size: 11px; line-height: 1.2; word-break: break-word;">${nombreProducto}</td>
+            <td style="padding: 4px 4px; width: 12%; font-size: 11px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${codigoContable}</td>
+            <td style="padding: 4px 4px; width: 20%; text-align: right; font-size: 11px; line-height: 1.2; white-space: nowrap;">${precioUnitario}</td>
+            <td style="padding: 4px 4px; width: 10%; text-align: center; font-weight: 600; font-size: 11px; line-height: 1.2;">${item.cantidad || 0}</td>
+            <td style="padding: 4px 4px; width: 8%; text-align: center; font-size: 14px; line-height: 1;">☐</td>
           </tr>
         `;
       });
@@ -793,11 +793,11 @@
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed;">
               <thead>
                 <tr style="background: #c62828; color: white;">
-                  <th style="padding: 5px 4px; text-align: left; font-weight: 600; font-size: 10px;">Producto</th>
-                  <th style="padding: 5px 4px; text-align: left; font-weight: 600; font-size: 10px;">Codigo contable</th>
-                  <th style="padding: 5px 4px; text-align: right; font-weight: 600; font-size: 10px;">Precio unitario</th>
-                  <th style="padding: 5px 4px; text-align: center; font-weight: 600; font-size: 10px;">Cant.</th>
-                  <th style="padding: 5px 4px; text-align: center; font-weight: 600; font-size: 10px;">Alist.</th>
+                  <th style="padding: 5px 4px; width: 50%; text-align: left; font-weight: 600; font-size: 10px;">Producto</th>
+                  <th style="padding: 5px 4px; width: 12%; text-align: left; font-weight: 600; font-size: 10px;">Codigo contable</th>
+                  <th style="padding: 5px 4px; width: 20%; text-align: right; font-weight: 600; font-size: 10px;">Precio unitario</th>
+                  <th style="padding: 5px 4px; width: 10%; text-align: center; font-weight: 600; font-size: 10px;">Cant.</th>
+                  <th style="padding: 5px 4px; width: 8%; text-align: center; font-weight: 600; font-size: 10px;">Alist.</th>
                 </tr>
               </thead>
               <tbody>${itemsHtml}</tbody>
