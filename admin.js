@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbywPQrI2A9mT1HxW9WYsHCkI3hrLjnpz4bKckSvrECi9i9-GyAMwSlziBANqu3jF4OkDw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwyyfV0MA7ga3qWIniLrXKnO0ZZt7l8lG0rA9ySm4QBI5PI7WrWzvYipOYnb2uilHn99g/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 
@@ -283,6 +283,9 @@ function renderizarPedidosAdmin(lista = pedidosAdmin) {
           <button onclick="imprimirPedido(${realIndex >= 0 ? realIndex : index})" class="btn-icon btn-icon-print" title="Imprimir" aria-label="Imprimir pedido ${idDisplay}">
             <span class="material-symbols-outlined btn-icon-symbol">print</span>
           </button>
+          <button onclick="reenviarCorreoBodega(${realIndex >= 0 ? realIndex : index}, event)" class="btn-icon btn-icon-mail" title="Reenviar alistamiento a bodega" aria-label="Reenviar correo de alistamiento del pedido ${idDisplay}">
+            <span class="material-symbols-outlined btn-icon-symbol">forward_to_inbox</span>
+          </button>
           <button onclick="exportarPedidoCSV(${realIndex >= 0 ? realIndex : index})" class="btn-icon btn-icon-export" title="Exportar CSV" aria-label="Exportar pedido ${idDisplay} en CSV">
             <span class="material-symbols-outlined btn-icon-symbol">download</span>
           </button>
@@ -414,58 +417,81 @@ function cerrarModalEditarPedido() {
   cerrarModalDetallePedido();
 }
 
-function guardarCambioPedido() {
+function obtenerPedidoAdminPorId(idPedido) {
+  if (idPedido === null || idPedido === undefined || idPedido === "") {
+    return null;
+  }
+
+  return pedidosAdmin.find(p =>
+    (p.id_pedido && p.id_pedido == idPedido) ||
+    (p.pedido_id && p.pedido_id == idPedido) ||
+    (p.id && p.id == idPedido)
+  ) || null;
+}
+
+function obtenerToastAdmin() {
+  if (window.toast) return window.toast;
+  if (window.parent && window.parent.toast) return window.parent.toast;
+  if (typeof toast !== "undefined") return toast;
+  return null;
+}
+
+async function guardarCambioPedido(event) {
   if (pedidoEnEdicion === null) return;
+
+  const toastAdmin = obtenerToastAdmin();
+  const botonGuardar = event?.currentTarget || event?.target || document.querySelector("button[onclick*='guardarCambioPedido']");
+  const textoOriginal = botonGuardar ? botonGuardar.textContent : "";
 
   const nuevoEstado = document.getElementById("selectEstado").value;
   
-  // Buscar el pedido en el array
-  const pedido = pedidosAdmin.find(p => p.id == pedidoEnEdicion);
+  const pedido = obtenerPedidoAdminPorId(pedidoEnEdicion);
   if (!pedido) {
-    if (window.toast) window.toast.error("Pedido no encontrado");
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error("Pedido no encontrado");
+    } else {
+      alert("Pedido no encontrado");
+    }
     return;
   }
 
-  // Actualizar el estado localmente
-  pedido.estado = nuevoEstado;
+  const idPedido = pedido.id_pedido || pedido.pedido_id || pedido.id;
 
-  // Sincronizar con API (comentado hasta que se implemente en el backend)
-  /*
-  fetch(API_URL, {
-    method: "POST",
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: "actualizarEstadoPedido",
-      key: API_KEY,
-      idPedido: pedidoEnEdicion,
-      estado: nuevoEstado
-    })
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (data.ok) {
-        if (window.toast) window.toast.exito("Estado actualizado");
-        cerrarModalDetallePedido();
-        renderizarPedidosAdmin();
-      } else {
-        if (window.toast) window.toast.error("Error al guardar cambios");
-      }
-    })
-    .catch(error => {
-      console.error("Error:", error);
-      if (window.toast) window.toast.error("Error de conexión");
-    });
-  */
-  
-  // Por ahora, solo actualizar localmente
-  if (window.toast) window.toast.exito("Estado actualizado (local)");
-  cerrarModalDetallePedido();
-  renderizarPedidosAdmin();
+  try {
+    if (botonGuardar) {
+      botonGuardar.disabled = true;
+      botonGuardar.textContent = "⏳ Guardando...";
+    }
+
+    await actualizarEstadoPedidoAdmin(idPedido, nuevoEstado);
+    pedido.estado = nuevoEstado;
+    await cargarPedidosAdmin();
+
+    if (toastAdmin && toastAdmin.exito) {
+      toastAdmin.exito(`Estado del pedido #${idPedido} actualizado a ${nuevoEstado}`);
+    } else {
+      alert(`Estado del pedido #${idPedido} actualizado a ${nuevoEstado}`);
+    }
+
+    cerrarModalDetallePedido();
+  } catch (error) {
+    console.error("Error guardando cambio de estado:", error);
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error(error.message || "No se pudo guardar el estado del pedido");
+    } else {
+      alert(error.message || "No se pudo guardar el estado del pedido");
+    }
+  } finally {
+    if (botonGuardar) {
+      botonGuardar.disabled = false;
+      botonGuardar.textContent = textoOriginal;
+    }
+  }
 }
 
 async function imprimirPedidoActual() {
   if (pedidoEnEdicion === null) return;
-  const pedido = pedidosAdmin.find(p => p.id == pedidoEnEdicion);
+  const pedido = obtenerPedidoAdminPorId(pedidoEnEdicion);
   if (!pedido) return;
   await imprimirPedidoData(pedido);
 }
@@ -473,6 +499,94 @@ async function imprimirPedidoActual() {
 async function imprimirPedido(index) {
   const pedido = pedidosAdmin[index];
   await imprimirPedidoData(pedido);
+}
+
+async function reenviarCorreoBodega(index, event) {
+  const pedido = pedidosAdmin[index];
+  if (!pedido) {
+    if (window.toast) window.toast.error("Pedido no encontrado");
+    return;
+  }
+
+  await reenviarCorreoBodegaData(pedido, event?.currentTarget || event?.target || null);
+}
+
+async function reenviarCorreoBodegaActual(event) {
+  if (pedidoEnEdicion === null) {
+    if (window.toast) window.toast.error("No hay pedido seleccionado");
+    return;
+  }
+
+  const pedido = obtenerPedidoAdminPorId(pedidoEnEdicion);
+
+  if (!pedido) {
+    if (window.toast) window.toast.error("Pedido no encontrado");
+    return;
+  }
+
+  await reenviarCorreoBodegaData(pedido, event?.currentTarget || event?.target || null);
+}
+
+async function reenviarCorreoBodegaData(pedido, boton) {
+  const idPedido = pedido.id_pedido || pedido.pedido_id || pedido.id;
+  if (!idPedido) {
+    if (window.toast) window.toast.error("No se pudo identificar el pedido");
+    return;
+  }
+
+  const textoOriginal = boton ? boton.textContent : "";
+  if (boton) {
+    boton.disabled = true;
+    boton.textContent = boton.classList.contains("btn-icon") ? "" : "📤 Reenviando...";
+  }
+
+  try {
+    const items = await obtenerDetallePedido(idPedido);
+    if (!items || items.length === 0) {
+      throw new Error("El pedido no tiene items para enviar");
+    }
+
+    const clientePayload = {
+      nombre: pedido.cliente || "N/A",
+      ciudad: pedido.ciudad || "N/A",
+      telefono: pedido.telefono || "No proporcionado",
+      notas: pedido.notas || pedido.observaciones || ""
+    };
+
+    const response = await fetch(API_PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "enviarNotificacionBodega",
+        key: API_KEY,
+        pedido_id: idPedido,
+        cliente: clientePayload,
+        items
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      if (window.toast) window.toast.exito(`Correo reenviado a bodega para pedido #${idPedido}`);
+      return;
+    }
+
+    if (data.warning) {
+      if (window.toast) window.toast.info(data.warning);
+      return;
+    }
+
+    throw new Error(data.error || "No se pudo reenviar el correo");
+  } catch (error) {
+    console.error("Error reenviando correo de bodega:", error);
+    if (window.toast) window.toast.error(`Error al reenviar: ${error.message || error}`);
+  } finally {
+    if (boton) {
+      boton.disabled = false;
+      boton.textContent = textoOriginal;
+    }
+  }
 }
 
 async function obtenerDetallePedido(idPedido) {
@@ -841,6 +955,8 @@ window.cerrarModalEditarPedido = cerrarModalEditarPedido;
 window.guardarCambioPedido = guardarCambioPedido;
 window.imprimirPedido = imprimirPedido;
 window.imprimirPedidoActual = imprimirPedidoActual;
+window.reenviarCorreoBodega = reenviarCorreoBodega;
+window.reenviarCorreoBodegaActual = reenviarCorreoBodegaActual;
 
 // Funciones de categorías
 window.abrirFormCategoria = abrirFormCategoria;
@@ -1357,7 +1473,7 @@ function descargarArchivo(contenido, nombreArchivo, tipo) {
 }
 
 async function actualizarEstadoPedidoAdmin(idPedido, estado) {
-  const response = await fetch(API_URL, {
+  const response = await fetch(API_PROXY_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

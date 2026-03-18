@@ -733,12 +733,20 @@
       
       let itemsHtml = '';
       items.forEach((item) => {
+        const nombreProducto = item.nombre || item.producto || item.descripcion || item.referencia || "N/A";
+        const codigoContable = item.codigo_contable || item.id_producto || item.codigo || item.sku || "N/A";
+        const precioNumerico = Number(item.precio_unitario || item.precio || 0);
+        const precioUnitario = Number.isFinite(precioNumerico) && precioNumerico > 0
+          ? `$ ${precioNumerico.toLocaleString('es-CO')}`
+          : "N/A";
+
         itemsHtml += `
-          <tr style="border-bottom: 1px solid #ddd;">
-            <td style="padding: 12px 8px; font-weight: 600;">${item.nombre}</td>
-            <td style="padding: 12px 8px;">${item.categoria || 'Sin categoría'}</td>
-            <td style="padding: 12px 8px; text-align: center; font-weight: 600; font-size: 16px;">${item.cantidad}</td>
-            <td style="padding: 12px 8px; text-align: center; font-size: 20px;">☐</td>
+          <tr style="border-bottom: 1px solid #e7e7e7;">
+            <td style="padding: 4px 4px; font-weight: 600; font-size: 11px; line-height: 1.2;">${nombreProducto}</td>
+            <td style="padding: 4px 4px; font-size: 11px; line-height: 1.2;">${codigoContable}</td>
+            <td style="padding: 4px 4px; text-align: right; font-size: 11px; line-height: 1.2; white-space: nowrap;">${precioUnitario}</td>
+            <td style="padding: 4px 4px; text-align: center; font-weight: 600; font-size: 11px; line-height: 1.2;">${item.cantidad || 0}</td>
+            <td style="padding: 4px 4px; text-align: center; font-size: 14px; line-height: 1;">☐</td>
           </tr>
         `;
       });
@@ -750,39 +758,54 @@
       const cuerpoHTML = `
         <!DOCTYPE html>
         <html>
-        <head><meta charset="utf-8"></head>
-        <body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; background-color: #f5f5f5;">
-          <div style="max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <div style="border-bottom: 3px solid #c62828; padding-bottom: 15px; margin-bottom: 25px;">
-              <h1 style="margin: 0 0 10px 0; color: #c62828; font-size: 24px;">FORMATO DE ALISTING - BODEGA</h1>
-              <p style="margin: 0; color: #666; font-size: 12px;">Generado: ${fechaActual} ${horaActual}</p>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            @media print {
+              body { padding: 0 !important; background: #ffffff !important; }
+              .mail-wrap {
+                max-width: 100% !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                padding: 8px !important;
+              }
+            }
+          </style>
+        </head>
+        <body style="font-family: Arial, sans-serif; margin: 0; padding: 8px; color: #333; background-color: #f5f5f5; font-size: 12px; line-height: 1.3;">
+          <div class="mail-wrap" style="max-width: 760px; margin: 0 auto; background: white; padding: 12px; border-radius: 6px; box-shadow: 0 1px 6px rgba(0,0,0,0.08);">
+            <div style="border-bottom: 2px solid #c62828; padding-bottom: 8px; margin-bottom: 10px;">
+              <h1 style="margin: 0 0 4px 0; color: #c62828; font-size: 17px; line-height: 1.2;">FORMATO DE ALISTING - BODEGA</h1>
+              <p style="margin: 0; color: #666; font-size: 10px;">Generado: ${fechaActual} ${horaActual}</p>
             </div>
             
-            <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-              <p style="margin: 8px 0; font-size: 16px;"><strong>Pedido #:</strong> ${pedidoId}</p>
-              <p style="margin: 8px 0; font-size: 16px;"><strong>Cliente:</strong> ${cliente.nombre || 'N/A'}</p>
-              <p style="margin: 8px 0; font-size: 16px;"><strong>Ciudad:</strong> ${cliente.ciudad || 'N/A'}</p>
-              <p style="margin: 8px 0; font-size: 16px;"><strong>Teléfono:</strong> ${cliente.telefono || 'No proporcionado'}</p>
-              ${cliente.notas ? `<p style="margin: 8px 0; font-size: 16px;"><strong>Notas:</strong> ${cliente.notas}</p>` : ''}
+            <div style="background: #f9f9f9; padding: 8px 10px; border-radius: 6px; margin-bottom: 10px;">
+              <p style="margin: 2px 0; font-size: 11px;"><strong>Pedido #:</strong> ${pedidoId}</p>
+              <p style="margin: 2px 0; font-size: 11px;"><strong>Cliente:</strong> ${cliente.nombre || 'N/A'}</p>
+              <p style="margin: 2px 0; font-size: 11px;"><strong>Ciudad:</strong> ${cliente.ciudad || 'N/A'}</p>
+              <p style="margin: 2px 0; font-size: 11px;"><strong>Teléfono:</strong> ${cliente.telefono || 'No proporcionado'}</p>
+              ${cliente.notas ? `<p style="margin: 2px 0; font-size: 11px;"><strong>Notas:</strong> ${cliente.notas}</p>` : ''}
             </div>
             
-            <h2 style="color: #c62828; margin-top: 25px; margin-bottom: 15px; border-bottom: 2px solid #e0e0e0; padding-bottom: 8px;">ARTÍCULOS A ALISTAR</h2>
+            <h2 style="color: #c62828; margin: 0 0 6px 0; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; font-size: 13px;">ARTÍCULOS A ALISTAR</h2>
             
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed;">
               <thead>
                 <tr style="background: #c62828; color: white;">
-                  <th style="padding: 12px 8px; text-align: left; font-weight: 600;">Producto</th>
-                  <th style="padding: 12px 8px; text-align: left; font-weight: 600;">Categoría</th>
-                  <th style="padding: 12px 8px; text-align: center; font-weight: 600;">Cantidad</th>
-                  <th style="padding: 12px 8px; text-align: center; font-weight: 600;">✓ Alisted</th>
+                  <th style="padding: 5px 4px; text-align: left; font-weight: 600; font-size: 10px;">Producto</th>
+                  <th style="padding: 5px 4px; text-align: left; font-weight: 600; font-size: 10px;">Codigo contable</th>
+                  <th style="padding: 5px 4px; text-align: right; font-weight: 600; font-size: 10px;">Precio unitario</th>
+                  <th style="padding: 5px 4px; text-align: center; font-weight: 600; font-size: 10px;">Cant.</th>
+                  <th style="padding: 5px 4px; text-align: center; font-weight: 600; font-size: 10px;">Alist.</th>
                 </tr>
               </thead>
               <tbody>${itemsHtml}</tbody>
             </table>
             
-            <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; margin-top: 25px;">
-              <h3 style="margin: 0 0 10px 0; color: #ff9800; font-size: 16px;">INSTRUCCIONES</h3>
-              <ol style="margin: 5px 0; padding-left: 20px; color: #555;">
+            <div style="background: #fff3e0; border-left: 3px solid #ff9800; padding: 8px 10px; margin-top: 8px;">
+              <h3 style="margin: 0 0 6px 0; color: #ff9800; font-size: 12px;">INSTRUCCIONES</h3>
+              <ol style="margin: 0; padding-left: 16px; color: #555; font-size: 10px; line-height: 1.2;">
                 <li>Verificar existencias de cada artículo en inventario</li>
                 <li>Alistar los productos en el orden listado</li>
                 <li>Marcar con un ✓ cada artículo allistado</li>
@@ -791,8 +814,8 @@
               </ol>
             </div>
             
-            <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #999;">
-              <p>Documento generado automáticamente desde NIA CALI</p>
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #ddd; text-align: center; font-size: 10px; color: #999;">
+              <p style="margin: 0;">Documento generado automáticamente desde NIA CALI</p>
             </div>
           </div>
         </body>

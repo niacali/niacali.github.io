@@ -133,7 +133,7 @@
               <option value="">Todos los estados</option>
               <option value="pendiente">Pendiente</option>
               <option value="procesando">Procesando</option>
-              <option value="enviado">Enviado</option>
+              <option value="facturado">Facturado</option>
               <option value="entregado">Entregado</option>
               <option value="cancelado">Cancelado</option>
             </select>
@@ -364,7 +364,7 @@
           <select id="selectEstado" class="form-select">
             <option value="pendiente">Pendiente</option>
             <option value="procesando">Procesando</option>
-            <option value="enviado">Enviado</option>
+            <option value="facturado">Facturado</option>
             <option value="entregado">Entregado</option>
             <option value="cancelado">Cancelado</option>
           </select>
@@ -372,11 +372,14 @@
 
         <!-- Acciones -->
         <div class="modal-actions" style="margin-top: 20px;">
-          <button onclick="guardarCambioPedido()" class="btn btn-primary">
+          <button onclick="guardarCambioPedido(event)" class="btn btn-primary">
             💾 Guardar Estado
           </button>
           <button onclick="imprimirPedidoActual()" class="btn btn-outline">
             🖨 Imprimir
+          </button>
+          <button onclick="reenviarCorreoBodegaActual(event)" class="btn btn-outline">
+            📧 Reenviar a Bodega
           </button>
           <button onclick="cerrarModalDetallePedido()" class="btn btn-outline">
             ✕ Cerrar
@@ -527,6 +530,6 @@
   <!-- SCRIPTS -->
   <script src="app.js"></script>
   <script src="sidebar.js"></script>
-  <script src="admin.js?v=2026020201"></script>
+  <script src="admin.js?v=2026020202"></script>
 </body>
 </html>
