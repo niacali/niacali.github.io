@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbz-S0RUi4tdzFa27PwTt2q-OhUW-q7Q0-NnOS1UXdHMluOjeaVZAJRZvH6MEJ1MexO_Bw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzyTr5PyWTicE2P4derkKDZ7Sqf8Gf5OkfH6jrsSo6HFrsx4nbYfsBrrT-MQoPNpweVAQ/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 

@@ -734,7 +734,7 @@
       let itemsHtml = '';
       items.forEach((item) => {
         const nombreProducto = item.nombre || item.producto || item.descripcion || item.referencia || "N/A";
-        const codigoContable = item.codigo_contable || item.id_producto || item.codigo || item.sku || "N/A";
+        const codigoContable = item.codigo_contable || item.id_producto || item.codigo || item.sku || item.referencia || item.id || "N/A";
         const precioNumerico = Number(item.precio_unitario || item.precio || 0);
         const precioUnitario = Number.isFinite(precioNumerico) && precioNumerico > 0
           ? `$ ${precioNumerico.toLocaleString('es-CO')}`
@@ -893,10 +893,10 @@
 
       Logger.log("✓ Configuración cargada: " + JSON.stringify(config));
 
-      return {
-        success: true,
-        correo_bodega: config.correo_bodega || null
-      };
+      // Retorna TODAS las claves de la hoja Config dinámicamente.
+      // Así cualquier clave nueva (whatsapp_bodega, etc.) está disponible
+      // sin necesidad de modificar este código nuevamente.
+      return Object.assign({ success: true }, config);
     } catch (error) {
       Logger.log("❌ Error obteniendo configuración: " + error.toString());
       return {

@@ -12,7 +12,8 @@ if (window.location.pathname.includes('admin.html') || document.getElementById('
 // CONFIGURACIÓN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbz-S0RUi4tdzFa27PwTt2q-OhUW-q7Q0-NnOS1UXdHMluOjeaVZAJRZvH6MEJ1MexO_Bw/exec";
+// Se asigna también a window.API_URL para que carrito.js (en otro bloque) herede la URL correcta
+const API_URL = window.API_URL = "https://script.google.com/macros/s/AKfycbzyTr5PyWTicE2P4derkKDZ7Sqf8Gf5OkfH6jrsSo6HFrsx4nbYfsBrrT-MQoPNpweVAQ/exec";
 const API_KEY = "TIENDA_API_2026";
 const CLOUDFLARE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
 const LIMIT = 20;
@@ -497,11 +498,22 @@ function agregarAlCarrito(producto, cantidad) {
 
   if (item) {
     item.cantidad += cantidad;
+    // Completa metadatos si el item venia de un carrito antiguo sin estos campos.
+    item.id_producto = item.id_producto || producto.id || "";
+    item.referencia = item.referencia || producto.referencia || producto.ref || "";
+    item.codigo = item.codigo || producto.codigo || "";
+    item.sku = item.sku || producto.sku || "";
+    item.codigo_contable = item.codigo_contable || producto.contabilidad || producto.codigo_contable || "";
     toast.info(`Cantidad actualizada: ${producto.nombre}`);
   } else {
     carrito.push({
       id: productoId,
+      id_producto: producto.id || "",
       nombre: producto.nombre,
+      referencia: producto.referencia || producto.ref || "",
+      codigo: producto.codigo || "",
+      sku: producto.sku || "",
+      codigo_contable: producto.contabilidad || producto.codigo_contable || "",
       precio: producto.precio,
       cantidad: cantidad,
       categoria: producto.categoria || "Sin categoría",

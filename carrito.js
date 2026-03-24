@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 if (typeof API_URL === 'undefined') {
-  window.API_URL = "https://script.google.com/macros/s/AKfycbw_QrC9F3DBGzwNFRjby2wa6iFNuGDUTkIQHBWi4VVpwolR6KhF7OlCyPYBzqhDoekoyA/exec";
+  window.API_URL = "https://script.google.com/macros/s/AKfycbzyTr5PyWTicE2P4derkKDZ7Sqf8Gf5OkfH6jrsSo6HFrsx4nbYfsBrrT-MQoPNpweVAQ/exec";
 }
 if (typeof API_PROXY_URL === 'undefined') {
   window.API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
@@ -17,6 +17,10 @@ if (typeof API_PDF_WORKER_URL === 'undefined') {
 }
 if (typeof API_KEY === 'undefined') {
   window.API_KEY = "TIENDA_API_2026";
+}
+if (typeof WHATSAPP_BODEGA_NUMBER === 'undefined') {
+  // Formato internacional sin +, por ejemplo: 573001234567
+  window.WHATSAPP_BODEGA_NUMBER = "";
 }
 
 // Asegurar toast global
@@ -39,6 +43,8 @@ if (typeof window.carrito === 'undefined') {
 // Usar getter/setter para acceder a window.carrito
 const getCarrito = () => window.carrito;
 const carrito = getCarrito();
+let whatsappModalResolver = null;
+let whatsappModalPayload = null;
 
 // ═══════════════════════════════════════════════════════════════════════
 // INICIALIZACIÓN
@@ -228,6 +234,12 @@ async function finalizarPedidoCarritoPage() {
     const pedidoID = dataPedido.pedido_id || "confirmado";
     const datosCliente = { nombre, ciudad, telefono, notas };
 
+    // Cargar número de WhatsApp de bodega desde hoja Config
+    const configWhatsapp = await cargarWhatsappBodegaDesdeConfig();
+    if (configWhatsapp.success) {
+      window.WHATSAPP_BODEGA_NUMBER = configWhatsapp.whatsapp_bodega;
+    }
+
     // Actualizar UI
     if (btnFinalizar) {
       btnFinalizar.textContent = "📄 Generando PDFs...";
@@ -259,8 +271,33 @@ async function finalizarPedidoCarritoPage() {
       console.log("✓ Bodega notificada");
     }
 
+    // 4. PREGUNTAR SI DESEA NOTIFICAR POR WHATSAPP
+    let resWhatsapp = { success: false, skipped: true };
+    const whatsappDisponible = Boolean(window.WHATSAPP_BODEGA_NUMBER);
+    if (whatsappDisponible) {
+      if (btnFinalizar) {
+        btnFinalizar.textContent = "💬 Esperando confirmación WhatsApp...";
+      }
+      resWhatsapp = await preguntarNotificacionWhatsapp({
+        pedidoID,
+        cliente: datosCliente,
+        items: carrito,
+        total
+      });
+      if (!resWhatsapp.success && !resWhatsapp.skipped) {
+        console.warn("Advertencia: No se pudo preparar WhatsApp:", resWhatsapp.error || resWhatsapp.warning);
+      } else if (resWhatsapp.success) {
+        console.log("✓ WhatsApp preparado");
+      }
+    } else if (configWhatsapp.warning) {
+      resWhatsapp = { success: false, warning: configWhatsapp.warning };
+    }
+
     // ÉXITO FINAL
-    const mensaje = `✓ ¡Pedido ${pedidoID} creado exitosamente!\n📄 PDF generado\n📧 Bodega notificada`;
+    const whatsappEstado = resWhatsapp.success
+      ? "\n💬 WhatsApp abierto"
+      : (resWhatsapp.skipped ? "\n💬 WhatsApp no enviado" : (resWhatsapp.warning ? `\n💬 ${resWhatsapp.warning}` : ""));
+    const mensaje = `✓ ¡Pedido ${pedidoID} creado exitosamente!\n📄 PDF generado\n📧 Bodega notificada${whatsappEstado}`;
     
     // Limpiar carrito
     vaciarCarritoCompleto();
@@ -294,6 +331,137 @@ async function finalizarPedidoCarritoPage() {
       btnFinalizar.textContent = btnOriginalText;
     }
   }
+}
+
+function normalizarNumeroWhatsapp(numero) {
+  return String(numero || "").replace(/\D/g, "");
+}
+
+// El proxy Cloudflare (pedido-proxy) solo acepta POST; para leer configuración
+// se llama directamente al endpoint GAS que sí responde a GET.
+async function cargarWhatsappBodegaDesdeConfig() {
+  try {
+    const endpointDirecto = `${API_URL}?action=obtenerConfiguracion&key=${API_KEY}`;
+    const response = await fetch(endpointDirecto);
+    const data = await response.json();
+
+    if (!data || !data.success) {
+      return { success: false, warning: "WhatsApp bodega no configurado en hoja Config (clave: Whatsapp_Bodega)" };
+    }
+
+    const numero = normalizarNumeroWhatsapp(data.whatsapp_bodega || "");
+    if (!numero) {
+      return { success: false, warning: "WhatsApp bodega no configurado en hoja Config (clave: Whatsapp_Bodega)" };
+    }
+
+    return { success: true, whatsapp_bodega: numero };
+  } catch (error) {
+    console.warn("No se pudo leer configuración de WhatsApp:", error);
+    return { success: false, error: error.message || String(error) };
+  }
+}
+
+function construirMensajeWhatsappPedido(pedidoID, cliente, items, total) {
+  const fechaHora = new Date().toLocaleString("es-CO");
+  const encabezado = [
+    `*NUEVO PEDIDO #${pedidoID}*`,
+    `Fecha: ${fechaHora}`,
+    `Cliente: ${cliente.nombre || "N/A"}`,
+    `Ciudad: ${cliente.ciudad || "N/A"}`
+  ];
+
+  if (cliente.notas) {
+    encabezado.push(`Notas: ${cliente.notas}`);
+  }
+
+  const lineasItems = (Array.isArray(items) ? items : []).map((item, index) => {
+    const nombre = item.nombre || item.producto || item.descripcion || "Producto";
+    const codigo = item.codigo_contable || item.id_producto || item.codigo || item.sku || item.referencia || item.id || "N/A";
+    const cantidad = Number(item.cantidad || 0);
+    const precio = Number(item.precio || item.precio_unitario || 0);
+    const subtotal = cantidad * precio;
+    return `${index + 1}. ${nombre} | Cod: ${codigo} | Cant: ${cantidad} | Subtotal: $${subtotal.toLocaleString("es-CO")}`;
+  });
+
+  if (lineasItems.length === 0) {
+    lineasItems.push("Sin productos para alistar");
+  }
+
+  const totalFmt = Number(total || 0).toLocaleString("es-CO");
+  return `${encabezado.join("\n")}\n\n*ALISTAMIENTO DE BODEGA*\n${lineasItems.join("\n")}\n\nTotal pedido: $${totalFmt}`;
+}
+
+function enviarNotificacionWhatsapp(pedidoID, cliente, items, total) {
+  try {
+    const numero = normalizarNumeroWhatsapp(window.WHATSAPP_BODEGA_NUMBER || "");
+    if (!numero) {
+      return { success: false, warning: "WhatsApp bodega no configurado en hoja Config (clave: Whatsapp_Bodega)" };
+    }
+
+    const mensaje = construirMensajeWhatsappPedido(pedidoID, cliente, items, total);
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message || String(error) };
+  }
+}
+
+function preguntarNotificacionWhatsapp(payload) {
+  const modal = document.getElementById("whatsappConfirmacionModal");
+  if (!modal) {
+    return Promise.resolve({ success: false, skipped: true, warning: "Modal de WhatsApp no disponible" });
+  }
+
+  whatsappModalPayload = payload;
+  modal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+
+  return new Promise(resolve => {
+    whatsappModalResolver = resolve;
+  });
+}
+
+function cerrarModalWhatsapp() {
+  const modal = document.getElementById("whatsappConfirmacionModal");
+  if (modal) modal.style.display = "none";
+  document.body.style.overflow = "auto";
+}
+
+function confirmarNotificacionWhatsapp() {
+  let resultado = { success: false, skipped: true };
+  if (whatsappModalPayload) {
+    resultado = enviarNotificacionWhatsapp(
+      whatsappModalPayload.pedidoID,
+      whatsappModalPayload.cliente,
+      whatsappModalPayload.items,
+      whatsappModalPayload.total
+    );
+  }
+
+  cerrarModalWhatsapp();
+  if (whatsappModalResolver) {
+    whatsappModalResolver(resultado);
+  }
+  whatsappModalResolver = null;
+  whatsappModalPayload = null;
+}
+
+function cancelarNotificacionWhatsapp() {
+  cerrarModalWhatsapp();
+  if (whatsappModalResolver) {
+    whatsappModalResolver({ success: false, skipped: true });
+  }
+  whatsappModalResolver = null;
+  whatsappModalPayload = null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -392,8 +560,12 @@ function cerrarModalConfirmacion() {
 // Cerrar modal si se hace click fuera del contenido
 document.addEventListener("click", (e) => {
   const modal = document.getElementById("pedidoConfirmacionModal");
+  const modalWhatsapp = document.getElementById("whatsappConfirmacionModal");
   if (modal && modal.style.display === "flex" && e.target === modal) {
     cerrarModalConfirmacion();
+  }
+  if (modalWhatsapp && modalWhatsapp.style.display === "flex" && e.target === modalWhatsapp) {
+    cancelarNotificacionWhatsapp();
   }
 });
 
@@ -401,8 +573,12 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     const modal = document.getElementById("pedidoConfirmacionModal");
+    const modalWhatsapp = document.getElementById("whatsappConfirmacionModal");
     if (modal && modal.style.display === "flex") {
       cerrarModalConfirmacion();
+    }
+    if (modalWhatsapp && modalWhatsapp.style.display === "flex") {
+      cancelarNotificacionWhatsapp();
     }
   }
 });

@@ -2908,6 +2908,10 @@ select:focus-visible {
   justify-content: center;
 }
 
+.modal-confirmacion-actions--split {
+  gap: 0.75rem;
+}
+
 .export-opciones {
   display: grid;
   gap: 2rem;
