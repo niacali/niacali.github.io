@@ -555,6 +555,7 @@
         const pIdxReferencia = pHeaders.indexOf("referencia");
         const pIdxContabilidad = pHeaders.indexOf("contabilidad");
         const pIdxPrecio2 = pHeaders.indexOf("precio2");
+        const pIdxPrecio3 = pHeaders.indexOf("precio3");
         const pIdxPrecio1 = pHeaders.indexOf("precio");
 
         productosData.forEach(pRow => {
@@ -565,6 +566,7 @@
             referencia: pIdxReferencia >= 0 ? pRow[pIdxReferencia] : "",
             contabilidad: pIdxContabilidad >= 0 ? pRow[pIdxContabilidad] : "",
             precio2: pIdxPrecio2 >= 0 ? pRow[pIdxPrecio2] : "",
+            precio3: pIdxPrecio3 >= 0 ? pRow[pIdxPrecio3] : "",
             precio1: pIdxPrecio1 >= 0 ? pRow[pIdxPrecio1] : ""
           };
         });
@@ -586,6 +588,7 @@
           referencia: productoInfo.referencia || "",
           contabilidad: productoInfo.contabilidad || "",
           precio2: productoInfo.precio2 || "",
+          precio3: productoInfo.precio3 || "",
           precio1: productoInfo.precio1 || "",
           precio_unitario: row[idxPrecio],
           cantidad: row[idxCantidad],

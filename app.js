@@ -13,7 +13,7 @@ if (window.location.pathname.includes('admin.html') || document.getElementById('
 // ═══════════════════════════════════════════════════════════════════════
 
 // Se asigna también a window.API_URL para que carrito.js (en otro bloque) herede la URL correcta
-const API_URL = window.API_URL = "https://script.google.com/macros/s/AKfycbzyTr5PyWTicE2P4derkKDZ7Sqf8Gf5OkfH6jrsSo6HFrsx4nbYfsBrrT-MQoPNpweVAQ/exec";
+const API_URL = window.API_URL = "https://script.google.com/macros/s/AKfycbwTpY8NZZCg7JHKmaYnj05yd-zP8aaE-jerXwKk6PwrIRmh71zcRXN-FKe-x2eamuUyqQ/exec";
 const API_KEY = "TIENDA_API_2026";
 const CLOUDFLARE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
 const LIMIT = 20;
@@ -57,6 +57,8 @@ const sortSelect = document.getElementById("sortSelect");
 
 let textoBusqueda = "";
 let ordenProductos = "az";
+let busquedaDebounceTimer = null;
+const collatorEs = new Intl.Collator("es", { sensitivity: "base" });
 
 function normalizarTexto(valor) {
   return String(valor || "").toLowerCase().trim();
@@ -83,14 +85,14 @@ function ordenarProductos(items) {
   const base = Array.isArray(items) ? [...items] : [];
   switch (ordenProductos) {
     case "za":
-      return base.sort((a, b) => normalizarTexto(b.nombre).localeCompare(normalizarTexto(a.nombre), "es"));
+      return base.sort((a, b) => collatorEs.compare(String(b._nombreNorm || ""), String(a._nombreNorm || "")));
     case "precio-asc":
-      return base.sort((a, b) => Number(a.precio || 0) - Number(b.precio || 0));
+      return base.sort((a, b) => Number(a._precioNum || 0) - Number(b._precioNum || 0));
     case "precio-desc":
-      return base.sort((a, b) => Number(b.precio || 0) - Number(a.precio || 0));
+      return base.sort((a, b) => Number(b._precioNum || 0) - Number(a._precioNum || 0));
     case "az":
     default:
-      return base.sort((a, b) => normalizarTexto(a.nombre).localeCompare(normalizarTexto(b.nombre), "es"));
+      return base.sort((a, b) => collatorEs.compare(String(a._nombreNorm || ""), String(b._nombreNorm || "")));
   }
 }
 
@@ -842,11 +844,20 @@ async function fetchProductos() {
       throw new Error("Formato de respuesta inválido");
     }
 
-    cache.productos = data.items;
+    cache.productos = data.items.map(item => {
+      const referencia = item.referencia || item.ref || item.codigo || item.sku || item.id || "";
+      return {
+        ...item,
+        _nombreNorm: normalizarTexto(item.nombre),
+        _categoriaNorm: normalizarTexto(item.categoria),
+        _refNorm: normalizarTexto(referencia),
+        _precioNum: Number(item.precio || 0)
+      };
+    });
     cache.timestamp = Date.now();
 
-    console.log(`✓ ${data.items.length} productos cargados`);
-    return data.items;
+    console.log(`✓ ${cache.productos.length} productos cargados`);
+    return cache.productos;
   } catch (error) {
     console.error("❌ Error fetch productos:", error);
     toast.error("Error cargando productos");
@@ -1016,15 +1027,10 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
     const img = card.querySelector(".card-imagen");
     const cta = card.querySelector(".card-imagen-cta");
 
-    wrapper.dataset.producto = JSON.stringify(productoConProxy);
-
-    const abrirDesdeCard = () => {
-      const producto = JSON.parse(wrapper.dataset.producto);
-      abrirModalProducto(producto, wrapper.dataset.img || img.src, wrapper.dataset.fallback);
-    };
-
-    img.addEventListener("click", abrirDesdeCard);
-    cta.addEventListener("click", abrirDesdeCard);
+    const productId = String(p.id);
+    wrapper.dataset.productId = productId;
+    img.dataset.productId = productId;
+    cta.dataset.productId = productId;
 
     productosDiv.appendChild(card);
   });
@@ -1085,7 +1091,7 @@ async function cargar() {
 
     const filtradosCategoria = categoriaSeleccionada
       ? all.filter(p => {
-          const prodCat = normalizarTexto(p.categoria);
+          const prodCat = p._categoriaNorm || normalizarTexto(p.categoria);
           const catNombre = normalizarTexto(categoriaSeleccionada.nombre);
           const catId = normalizarTexto(categoriaSeleccionada.id);
           return prodCat === catNombre || prodCat === catId;
@@ -1096,8 +1102,8 @@ async function cargar() {
     const baseBusqueda = query ? all : filtradosCategoria;
     const filtrados = query
       ? baseBusqueda.filter(p => {
-          const nombre = normalizarTexto(p.nombre);
-          const referencia = normalizarTexto(obtenerReferenciaProducto(p));
+          const nombre = p._nombreNorm || normalizarTexto(p.nombre);
+          const referencia = p._refNorm || normalizarTexto(obtenerReferenciaProducto(p));
           return nombre.includes(query) || referencia.includes(query);
         })
       : baseBusqueda;
@@ -1173,10 +1179,15 @@ if (busquedaInput) {
     actualizarBotonLimpiarBusqueda();
     page = 0;
 
+    if (busquedaDebounceTimer) {
+      clearTimeout(busquedaDebounceTimer);
+    }
+
     if (textoBusqueda) {
-      mostrarProductos();
-      cargar();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      busquedaDebounceTimer = setTimeout(() => {
+        mostrarProductos();
+        cargar();
+      }, 220);
       return;
     }
 
@@ -1219,6 +1230,24 @@ if (sortSelect) {
   });
 }
 
+if (productosDiv) {
+  productosDiv.addEventListener("click", (event) => {
+    const trigger = event.target.closest(".card-imagen, .card-imagen-cta");
+    if (!trigger) return;
+
+    const productId = String(trigger.dataset.productId || "");
+    if (!productId || !_productosCache[productId]) return;
+
+    const wrapper = trigger.closest(".card-imagen-wrapper") || trigger.parentElement;
+    const img = wrapper ? wrapper.querySelector(".card-imagen") : null;
+    const producto = _productosCache[productId];
+    const imageSrc = (wrapper && wrapper.dataset.img) || (img ? img.src : producto.imagen);
+    const fallback = (wrapper && wrapper.dataset.fallback) || producto.imagen;
+
+    abrirModalProducto(producto, imageSrc, fallback);
+  });
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // INICIALIZACIÓN (SOLO EN INDEX.HTML)
 // ═══════════════════════════════════════════════════════════════════════
@@ -1232,15 +1261,19 @@ if (productosDiv) { // Solo inicializar si estamos en index.html
       renderCarrito();
       actualizarBadgeCarrito();
 
+      // Cargar categorías y productos en paralelo para reducir tiempo de arranque.
+      const [categoriasDbRaw, productos] = await Promise.all([
+        fetchCategorias(),
+        fetchProductos()
+      ]);
+
+      let categoriasDb = categoriasDbRaw;
+
       // Renderizar categorías iniciales (rápido desde BD si existe)
-      let categoriasDb = await fetchCategorias();
       if (categoriasDb && categoriasDb.length > 0) {
         renderCategorias(categoriasDb);
         mostrarCategorias();
       }
-
-      // Obtener productos (para catálogo y conteos)
-      const productos = await fetchProductos();
 
       if (productos.length === 0) {
         toast.error("No se pudieron cargar los productos");

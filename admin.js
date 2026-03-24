@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzyTr5PyWTicE2P4derkKDZ7Sqf8Gf5OkfH6jrsSo6HFrsx4nbYfsBrrT-MQoPNpweVAQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwTpY8NZZCg7JHKmaYnj05yd-zP8aaE-jerXwKk6PwrIRmh71zcRXN-FKe-x2eamuUyqQ/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 
@@ -83,7 +83,7 @@ let pedidoEnEdicion = null;
 let productoEnEdicion = null;
 let categoriaEnEdicion = null;
 let pedidosFiltroTexto = "";
-let pedidosFiltroEstado = "";
+let pedidosFiltroEstado = "pendiente";
 
 // ═══════════════════════════════════════════════════════════════════════
 // AUTENTICACIÓN
@@ -186,6 +186,7 @@ if (pedidoSearch) {
 }
 
 if (pedidoEstadoFiltro) {
+  pedidoEstadoFiltro.value = pedidosFiltroEstado;
   pedidoEstadoFiltro.addEventListener("change", (event) => {
     pedidosFiltroEstado = event.target.value || "";
     aplicarFiltrosPedidos();
@@ -1239,6 +1240,7 @@ function pedirDatosExportacionCSV(pedido) {
       <select id="exportPrecioSelector" style="width:100%; box-sizing:border-box; padding:10px 11px; border:1px solid #d9d9d9; border-radius:8px; margin-bottom:14px;">
         <option value="precio1">Precio 1</option>
         <option value="precio2">Precio 2</option>
+        <option value="precio3">Precio 3</option>
       </select>
 
       <label for="exportTipoInput" style="display:block; margin-bottom:6px; font-size:13px; font-weight:600;">Tipo (2 digitos)</label>
@@ -1291,11 +1293,12 @@ function pedirDatosExportacionCSV(pedido) {
       localStorage.setItem("adminExportTipo", tipo);
 
       const precioSeleccionado = String(selectPrecio.value || "precio1");
+      const etiquetas = { precio1: "Precio 1", precio2: "Precio 2", precio3: "Precio 3" };
       cerrar({
         factura,
         tipo,
         precioSeleccionado,
-        precioEtiqueta: precioSeleccionado === "precio2" ? "Precio 2" : "Precio 1"
+        precioEtiqueta: etiquetas[precioSeleccionado] || "Precio 1"
       });
     });
   });
@@ -1307,7 +1310,7 @@ function construirCSVContablePedido(pedido, items, datosContables) {
   const tipo = String(datosContables.tipo || "21");
   const envio = `0${tipo}`;
   const factura = datosContables.factura;
-  const usarPrecio2 = datosContables.precioSeleccionado === "precio2";
+  const precioSeleccionado = datosContables.precioSeleccionado || "precio1";
   const comentario = `ped.${pedidoId} ${limpiarCampoCSV(pedido.cliente || "")}`;
 
   const filas = [];
@@ -1324,7 +1327,10 @@ function construirCSVContablePedido(pedido, items, datosContables) {
     const cantidad = Number(item.cantidad || 0);
     const precio1 = Number(item.precio1 ?? item.precio_unitario ?? item.precio ?? 0);
     const precio2 = Number(item.precio2 ?? 0);
-    const precioVenta = usarPrecio2 && precio2 > 0 ? precio2 : precio1;
+    const precio3 = Number(item.precio3 ?? 0);
+    let precioVenta = precio1;
+    if (precioSeleccionado === "precio2" && precio2 > 0) precioVenta = precio2;
+    else if (precioSeleccionado === "precio3" && precio3 > 0) precioVenta = precio3;
     const totalVentaItem = cantidad * precioVenta;
     // Costo por item: precio de venta menos 30%.
     const costoVentaItem = totalVentaItem * 0.70;
