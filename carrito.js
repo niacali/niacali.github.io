@@ -294,10 +294,14 @@ async function finalizarPedidoCarritoPage() {
     }
 
     // ÉXITO FINAL
+    const estadoBodega = resEnvioBodega.success
+      ? "\n📧 Bodega notificada"
+      : `\n📧 Bodega pendiente (${resEnvioBodega.error || "sin detalle"})`;
+
     const whatsappEstado = resWhatsapp.success
       ? "\n💬 WhatsApp abierto"
       : (resWhatsapp.skipped ? "\n💬 WhatsApp no enviado" : (resWhatsapp.warning ? `\n💬 ${resWhatsapp.warning}` : ""));
-    const mensaje = `✓ ¡Pedido ${pedidoID} creado exitosamente!\n📄 PDF generado\n📧 Bodega notificada${whatsappEstado}`;
+    const mensaje = `✓ ¡Pedido ${pedidoID} creado exitosamente!\n📄 PDF generado${estadoBodega}${whatsappEstado}`;
     
     // Limpiar carrito
     vaciarCarritoCompleto();
@@ -510,30 +514,52 @@ async function generarYDescargarPdfCliente(pedidoID, cliente, items, total) {
 // ═══════════════════════════════════════════════════════════════════════
 
 async function enviarNotificacionBodega(pedidoID, cliente, items) {
-  try {
-    const res = await fetch(API_PROXY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "enviarNotificacionBodega",
-        key: API_KEY,
-        pedido_id: pedidoID,
-        cliente: cliente,
-        items: items
-      })
-    });
+  const payload = {
+    action: "enviarNotificacionBodega",
+    key: API_KEY,
+    pedido_id: pedidoID,
+    cliente: cliente,
+    items: items
+  };
 
-    const data = await res.json();
+  const maxIntentos = 3;
+  let ultimoError = "Error desconocido";
 
-    if (data.success || data.warning) {
-      return { success: true, message: data.message || data.warning };
-    } else {
-      return { success: false, error: data.error || "Error desconocido" };
+  for (let intento = 1; intento <= maxIntentos; intento++) {
+    try {
+      const res = await fetch(API_PROXY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const responseText = await res.text();
+      let data = null;
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        throw new Error(`Respuesta no JSON del proxy (intento ${intento}): ${responseText.substring(0, 120)}`);
+      }
+
+      if (data && data.success) {
+        return { success: true, message: data.message || "Notificación enviada" };
+      }
+
+      ultimoError = (data && (data.error || data.warning)) || `Error HTTP ${res.status}`;
+      console.warn(`Intento ${intento}/${maxIntentos} fallido enviando correo a bodega:`, ultimoError);
+    } catch (error) {
+      ultimoError = error.message || String(error);
+      console.warn(`Intento ${intento}/${maxIntentos} con excepción enviando correo a bodega:`, ultimoError);
     }
-  } catch (error) {
-    console.error("Error enviando notificación a bodega:", error);
-    return { success: false, error: error.message };
+
+    if (intento < maxIntentos) {
+      // Backoff corto para mitigar intermitencia de red/proxy.
+      await new Promise(resolve => setTimeout(resolve, 400 * intento));
+    }
   }
+
+  console.error("Error enviando notificación a bodega tras reintentos:", ultimoError);
+  return { success: false, error: ultimoError };
 }
 
 // ═══════════════════════════════════════════════════════════════════════
