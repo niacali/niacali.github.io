@@ -13,7 +13,7 @@ if (window.location.pathname.includes('admin.html') || document.getElementById('
 // ═══════════════════════════════════════════════════════════════════════
 
 // Se asigna también a window.API_URL para que carrito.js (en otro bloque) herede la URL correcta
-const API_URL = window.API_URL = "https://script.google.com/macros/s/AKfycbwTpY8NZZCg7JHKmaYnj05yd-zP8aaE-jerXwKk6PwrIRmh71zcRXN-FKe-x2eamuUyqQ/exec";
+const API_URL = window.API_URL = "https://script.google.com/macros/s/AKfycbySrOyjYO_s1QdThFo1J5Eqac0JaEuce6nViu4NEflL_1YNyLFwou--BeRAzMYYeUSd/exec";
 const API_KEY = "TIENDA_API_2026";
 const CLOUDFLARE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
 const LIMIT = 20;
