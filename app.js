@@ -13,7 +13,7 @@ if (window.location.pathname.includes('admin.html') || document.getElementById('
 // ═══════════════════════════════════════════════════════════════════════
 
 // Se asigna también a window.API_URL para que carrito.js (en otro bloque) herede la URL correcta
-const API_URL = window.API_URL = "https://script.google.com/macros/s/AKfycbySrOyjYO_s1QdThFo1J5Eqac0JaEuce6nViu4NEflL_1YNyLFwou--BeRAzMYYeUSd/exec";
+const API_URL = window.API_URL = "https://script.google.com/macros/s/AKfycbyJ7sXc6UYELvY56e8j7C2BYty01cSnSmWXFYzMY22egfq9IpnhRxEYtDSTgFSq1A71/exec";
 const API_KEY = "TIENDA_API_2026";
 const CLOUDFLARE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
 const LIMIT = 20;
@@ -58,6 +58,11 @@ const sortSelect = document.getElementById("sortSelect");
 let textoBusqueda = "";
 let ordenProductos = "az";
 let busquedaDebounceTimer = null;
+let mostrandoNovedades = false;
+const BANNER_DISMISS_KEY = "nia_banner_novedades_dismissed";
+const BANNER_DISMISS_STATE_KEY = "nia_banner_novedades_dismissed_state";
+const BANNER_DISMISS_TTL = 24 * 60 * 60 * 1000; // 24 horas
+let ultimaFirmaNovedades = "";
 const collatorEs = new Intl.Collator("es", { sensitivity: "base" });
 
 function normalizarTexto(valor) {
@@ -79,6 +84,12 @@ function obtenerEtiquetaEstado(estado) {
 
 function obtenerReferenciaProducto(producto) {
   return producto.referencia || producto.ref || producto.codigo || producto.sku || producto.id || "";
+}
+
+function valorBooleano(valor) {
+  if (typeof valor === "boolean") return valor;
+  const normalizado = normalizarTexto(valor);
+  return normalizado === "true" || normalizado === "1" || normalizado === "si" || normalizado === "sí";
 }
 
 function ordenarProductos(items) {
@@ -323,6 +334,100 @@ document.addEventListener("touchend", (e) => {
 }, { passive: true });
 
 // ═══════════════════════════════════════════════════════════════════════
+// BANNER NOVEDADES
+// ═══════════════════════════════════════════════════════════════════════
+
+function esProductoNuevo(producto) {
+  if (!valorBooleano(producto.es_nuevo)) return false;
+  if (!producto.nuevo_hasta) return true;
+  try {
+    return Date.now() <= new Date(producto.nuevo_hasta).setHours(23, 59, 59, 999);
+  } catch (e) {
+    return true;
+  }
+}
+
+function obtenerNovedades(todos) {
+  return todos.filter(p => productoDisponible(p) && esProductoNuevo(p));
+}
+
+function construirFirmaNovedades(novedades) {
+  return novedades
+    .map(p => `${p.id || ""}:${p.nuevo_hasta || ""}`)
+    .sort()
+    .join("|");
+}
+
+function mostrarBannerNovedades(novedades) {
+  const banner = document.getElementById("bannerNovedades");
+  if (!banner) return;
+
+  if (novedades.length === 0) {
+    banner.style.display = "none";
+    return;
+  }
+
+  ultimaFirmaNovedades = construirFirmaNovedades(novedades);
+
+  // Respetar si el usuario lo cerró en las últimas 24 h
+  const dismissStateRaw = localStorage.getItem(BANNER_DISMISS_STATE_KEY);
+  if (dismissStateRaw) {
+    try {
+      const dismissState = JSON.parse(dismissStateRaw);
+      const mismaFirma = dismissState && dismissState.firma === ultimaFirmaNovedades;
+      const vigente = dismissState && Number(dismissState.timestamp) && (Date.now() - Number(dismissState.timestamp) < BANNER_DISMISS_TTL);
+      if (mismaFirma && vigente) return;
+    } catch (e) {
+      // Si el estado está corrupto, continuar y mostrar banner.
+    }
+  }
+
+  // Limpiar key legado para evitar bloqueos inesperados en despliegues nuevos
+  localStorage.removeItem(BANNER_DISMISS_KEY);
+
+  const conteo = document.getElementById("bannerNovedadesConteo");
+  if (conteo) {
+    conteo.textContent = `${novedades.length} producto${novedades.length > 1 ? "s" : ""} nuevo${novedades.length > 1 ? "s" : ""}`;
+  }
+
+  banner.style.display = "flex";
+  // Forzar re-animación
+  banner.classList.remove("banner-enter");
+  void banner.offsetWidth;
+  banner.classList.add("banner-enter");
+}
+
+function cerrarBannerNovedades() {
+  const banner = document.getElementById("bannerNovedades");
+  if (banner) {
+    banner.classList.add("banner-salir");
+    setTimeout(() => {
+      banner.style.display = "none";
+      banner.classList.remove("banner-enter", "banner-salir");
+    }, 300);
+  }
+  localStorage.setItem(BANNER_DISMISS_KEY, String(Date.now()));
+  localStorage.setItem(BANNER_DISMISS_STATE_KEY, JSON.stringify({
+    timestamp: Date.now(),
+    firma: ultimaFirmaNovedades
+  }));
+}
+
+function verNovedades() {
+  mostrandoNovedades = true;
+  categoriaSeleccionada = null;
+  textoBusqueda = "";
+  page = 0;
+  if (busquedaInput) busquedaInput.value = "";
+  actualizarBotonLimpiarBusqueda();
+  actualizarBusquedaUI(0);
+  categoriaBreadcrumb.innerHTML = `<span class="breadcrumb-nuevo">🆕 Novedades</span>`;
+  mostrarProductos();
+  cargar();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // CATEGORÍAS - VISTA INICIAL
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -336,6 +441,7 @@ function mostrarCategorias() {
 
 async function irInicioCategorias() {
   categoriaSeleccionada = null;
+  mostrandoNovedades = false;
   page = 0;
   textoBusqueda = "";
   if (busquedaInput) busquedaInput.value = "";
@@ -425,6 +531,7 @@ async function renderCategorias(categoriasData) {
     `;
     card.addEventListener("click", () => {
       categoriaSeleccionada = item; // Almacenar objeto completo
+      mostrandoNovedades = false;
       if (sortSelect) {
         ordenProductos = sortSelect.value || "az";
       }
@@ -978,9 +1085,11 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
 
     const descripcion = p.descripcion || p.detalle || p.descripcion_producto || "";
     const referencia = obtenerReferenciaProducto(p);
+    const esNuevo = esProductoNuevo(p);
 
     card.innerHTML = `
       <div class="card-imagen-wrapper" data-img="${proxyUrl || p.imagen}" data-fallback="${fallbackSVG}" style="cursor: pointer; overflow: hidden; border-radius: 12px 12px 0 0;">
+        ${esNuevo ? `<div class="badge-nuevo">Nuevo</div>` : ""}
         ${disponible ? "" : `<div class="estado-badge">${etiquetaEstado}</div><div class="estado-overlay">${etiquetaEstado}</div>`}
         <img
           class="card-imagen"
@@ -1089,14 +1198,16 @@ async function cargar() {
       return;
     }
 
-    const filtradosCategoria = categoriaSeleccionada
-      ? all.filter(p => {
-          const prodCat = p._categoriaNorm || normalizarTexto(p.categoria);
-          const catNombre = normalizarTexto(categoriaSeleccionada.nombre);
-          const catId = normalizarTexto(categoriaSeleccionada.id);
-          return prodCat === catNombre || prodCat === catId;
-        })
-      : all;
+    const filtradosCategoria = mostrandoNovedades
+      ? obtenerNovedades(all)
+      : (categoriaSeleccionada
+          ? all.filter(p => {
+              const prodCat = p._categoriaNorm || normalizarTexto(p.categoria);
+              const catNombre = normalizarTexto(categoriaSeleccionada.nombre);
+              const catId = normalizarTexto(categoriaSeleccionada.id);
+              return prodCat === catNombre || prodCat === catId;
+            })
+          : all);
 
     const query = normalizarTexto(textoBusqueda);
     const baseBusqueda = query ? all : filtradosCategoria;
@@ -1112,6 +1223,8 @@ async function cargar() {
 
     if (query) {
       categoriaBreadcrumb.innerHTML = `Resultados: <span class="breadcrumb-muted">"${textoBusqueda}"</span>`;
+    } else if (mostrandoNovedades) {
+      categoriaBreadcrumb.innerHTML = `<span class="breadcrumb-nuevo">🆕 Novedades</span>`;
     } else if (categoriaSeleccionada) {
       const label = categoriaSeleccionada ? categoriaSeleccionada.nombre : "Todas las categorías";
       categoriaBreadcrumb.innerHTML = `Categoría: <span class="breadcrumb-muted">${label}</span>`;
@@ -1184,6 +1297,7 @@ if (busquedaInput) {
     }
 
     if (textoBusqueda) {
+      mostrandoNovedades = false;
       busquedaDebounceTimer = setTimeout(() => {
         mostrarProductos();
         cargar();
@@ -1204,6 +1318,7 @@ if (busquedaInput) {
 if (busquedaClear) {
   busquedaClear.addEventListener("click", () => {
     textoBusqueda = "";
+    mostrandoNovedades = false;
     if (busquedaInput) busquedaInput.value = "";
     actualizarBotonLimpiarBusqueda();
     actualizarBusquedaUI(0);
@@ -1289,6 +1404,9 @@ if (productosDiv) { // Solo inicializar si estamos en index.html
         const categoriasConConteo = actualizarConteoCategorias(productos, categoriasDb);
         renderCategorias(categoriasConConteo);
       }
+
+      // Mostrar banner si hay novedades activas
+      mostrarBannerNovedades(obtenerNovedades(productos));
 
       console.log("✅ Aplicación lista");
     } catch (error) {

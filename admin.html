@@ -472,6 +472,20 @@
           </select>
         </div>
 
+        <div class="form-group" style="border-top: 1px solid var(--border-light); padding-top: 14px; margin-top: 4px;">
+          <label style="font-weight: 600; color: var(--primary); display: block; margin-bottom: 8px;">🆕 Novedad</label>
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+            <input type="checkbox" id="editProductoEsNuevo" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);">
+            <span style="font-size: 0.97rem;">Mostrar este producto en el banner de novedades</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="editProductoNuevoHasta">Novedad vigente hasta:</label>
+          <input id="editProductoNuevoHasta" type="date" class="form-input">
+          <small style="color: #888; display: block; margin-top: 4px;">Dejar vacío para vigencia indefinida</small>
+        </div>
+
         <div class="modal-actions">
           <button onclick="guardarCambioProducto()" class="btn btn-primary">
             Guardar Cambios

@@ -59,6 +59,24 @@
 
   <!-- MAIN CONTENT -->
   <main class="main-content">
+
+    <!-- BANNER NOVEDADES -->
+    <div id="bannerNovedades" class="banner-novedades" style="display: none;" role="banner" aria-label="Novedades en el catálogo">
+      <div class="banner-novedades-content">
+        <div class="banner-novedades-texto">
+          <span class="banner-novedades-icono">🆕</span>
+          <div>
+            <strong class="banner-novedades-titulo">¡Nuevos productos en el catálogo!</strong>
+            <span class="banner-novedades-subtitulo" id="bannerNovedadesConteo"></span>
+          </div>
+        </div>
+        <div class="banner-novedades-acciones">
+          <button id="bannerBtn" class="banner-btn-ver" onclick="verNovedades()">Ver novedades</button>
+          <button class="banner-btn-cerrar" onclick="cerrarBannerNovedades()" aria-label="Cerrar banner">✕</button>
+        </div>
+      </div>
+    </div>
+
     <!-- BUSCADOR -->
     <section class="search-section" aria-label="Buscar productos">
       <div class="search-bar">

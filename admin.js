@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbySrOyjYO_s1QdThFo1J5Eqac0JaEuce6nViu4NEflL_1YNyLFwou--BeRAzMYYeUSd/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyJ7sXc6UYELvY56e8j7C2BYty01cSnSmWXFYzMY22egfq9IpnhRxEYtDSTgFSq1A71/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 
@@ -804,6 +804,8 @@ function abrirFormProducto() {
   document.getElementById("editProductoCategoria").value = "";
   document.getElementById("editProductoStock").value = "";
   document.getElementById("editProductoStatus").value = "activo";
+  document.getElementById("editProductoEsNuevo").checked = false;
+  document.getElementById("editProductoNuevoHasta").value = "";
   document.getElementById("modalEditarProducto").style.display = "flex";
 }
 
@@ -816,6 +818,10 @@ function abrirEditarProducto(index) {
   document.getElementById("editProductoCategoria").value = producto.categoria;
   document.getElementById("editProductoStock").value = producto.stock || 0;
   document.getElementById("editProductoStatus").value = producto.status || "activo";
+  document.getElementById("editProductoEsNuevo").checked = !!producto.es_nuevo;
+  document.getElementById("editProductoNuevoHasta").value = producto.nuevo_hasta
+    ? String(producto.nuevo_hasta).substring(0, 10)
+    : "";
 
   document.getElementById("modalEditarProducto").style.display = "flex";
 }
@@ -831,6 +837,8 @@ function guardarCambioProducto() {
   const categoria = document.getElementById("editProductoCategoria").value.trim();
   const stock = parseInt(document.getElementById("editProductoStock").value);
   const status = document.getElementById("editProductoStatus").value;
+  const es_nuevo = document.getElementById("editProductoEsNuevo").checked;
+  const nuevo_hasta = document.getElementById("editProductoNuevoHasta").value || "";
 
   if (!nombre || !precio || !categoria) {
     if (toast) toast.error("Completa todos los campos requeridos");
@@ -846,6 +854,8 @@ function guardarCambioProducto() {
       categoria,
       stock,
       status,
+      es_nuevo,
+      nuevo_hasta,
       imagen: "https://via.placeholder.com/200"
     };
     productosAdmin.push(nuevoProducto);
@@ -856,6 +866,8 @@ function guardarCambioProducto() {
     productosAdmin[productoEnEdicion].categoria = categoria;
     productosAdmin[productoEnEdicion].stock = stock;
     productosAdmin[productoEnEdicion].status = status;
+    productosAdmin[productoEnEdicion].es_nuevo = es_nuevo;
+    productosAdmin[productoEnEdicion].nuevo_hasta = nuevo_hasta;
   }
 
   // Sincronizar con API

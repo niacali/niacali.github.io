@@ -409,7 +409,9 @@
       imagen: convertirDriveUrl(r[headers.indexOf("Url_Imagen_Drive")]),
       descripcion: r[headers.indexOf("descripcion")],
       estado: r[headers.indexOf("estado")],
-      referencia: r[headers.indexOf("referencia")]
+      referencia: r[headers.indexOf("referencia")],
+      es_nuevo: String(r[headers.indexOf("es_nuevo")] || "").toLowerCase() === "true",
+      nuevo_hasta: r[headers.indexOf("nuevo_hasta")] ? String(r[headers.indexOf("nuevo_hasta")]).substring(0, 10) : ""
     }));
   }
 
@@ -426,6 +428,8 @@
     const idxPrecio = headers.indexOf("precio");
     const idxImagen = headers.indexOf("Url_Imagen_Drive");
     const idxReferencia = headers.indexOf("referencia");
+    const idxEsNuevo = headers.indexOf("es_nuevo");
+    const idxNuevoHasta = headers.indexOf("nuevo_hasta");
 
     const catParam = String(categoria || "").toLowerCase().trim();
 
@@ -441,7 +445,9 @@
         precio: r[idxPrecio],
         categoria: r[idxCategoria],
         referencia: r[idxReferencia],
-        imagen: convertirDriveUrl(r[idxImagen])
+        imagen: convertirDriveUrl(r[idxImagen]),
+        es_nuevo: idxEsNuevo >= 0 ? (String(r[idxEsNuevo] || "").toLowerCase() === "true") : false,
+        nuevo_hasta: idxNuevoHasta >= 0 && r[idxNuevoHasta] ? String(r[idxNuevoHasta]).substring(0, 10) : ""
       }));
 
     return items;
