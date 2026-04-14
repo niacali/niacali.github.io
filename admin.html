@@ -305,30 +305,30 @@
 
       <div class="modal-body">
         <!-- Información del Pedido -->
-        <div class="pedido-info" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-          <div>
-            <p style="margin: 5px 0; color: #666; font-size: 14px;">ID Pedido</p>
-            <p style="margin: 5px 0; font-weight: bold; font-size: 18px;">#<span id="pedidoId"></span></p>
+        <div class="pedido-info pedido-info-horizontal">
+          <div class="pedido-info-item pedido-info-item--destacado">
+            <span class="pedido-info-label">ID Pedido</span>
+            <span class="pedido-info-value pedido-info-value--id">#<span id="pedidoId"></span></span>
           </div>
-          <div>
-            <p style="margin: 5px 0; color: #666; font-size: 14px;">Cliente</p>
-            <p style="margin: 5px 0; font-weight: bold;" id="pedidoCliente"></p>
+          <div class="pedido-info-item pedido-info-item--cliente">
+            <span class="pedido-info-label">Cliente</span>
+            <span class="pedido-info-value" id="pedidoCliente"></span>
           </div>
-          <div>
-            <p style="margin: 5px 0; color: #666; font-size: 14px;">Fecha</p>
-            <p style="margin: 5px 0; font-weight: bold;" id="pedidoFecha"></p>
+          <div class="pedido-info-item">
+            <span class="pedido-info-label">Fecha</span>
+            <span class="pedido-info-value" id="pedidoFecha"></span>
           </div>
-          <div>
-            <p style="margin: 5px 0; color: #666; font-size: 14px;">Ciudad</p>
-            <p style="margin: 5px 0; font-weight: bold;" id="pedidoCiudad"></p>
+          <div class="pedido-info-item">
+            <span class="pedido-info-label">Ciudad</span>
+            <span class="pedido-info-value" id="pedidoCiudad"></span>
           </div>
-          <div>
-            <p style="margin: 5px 0; color: #666; font-size: 14px;">Teléfono</p>
-            <p style="margin: 5px 0; font-weight: bold;" id="pedidoTelefono"></p>
+          <div class="pedido-info-item">
+            <span class="pedido-info-label">Teléfono</span>
+            <span class="pedido-info-value" id="pedidoTelefono"></span>
           </div>
-          <div>
-            <p style="margin: 5px 0; color: #666; font-size: 14px;">Dirección</p>
-            <p style="margin: 5px 0; font-weight: bold;" id="pedidoDireccion"></p>
+          <div class="pedido-info-item pedido-info-item--direccion">
+            <span class="pedido-info-label">Dirección</span>
+            <span class="pedido-info-value" id="pedidoDireccion"></span>
           </div>
         </div>
 
@@ -371,12 +371,12 @@
         </div>
 
         <!-- Acciones -->
-        <div class="modal-actions" style="margin-top: 20px;">
+        <div class="modal-actions" style="margin-top: 20px; flex-wrap: wrap;">
           <button onclick="guardarCambioPedido(event)" class="btn btn-primary">
             💾 Guardar Estado
           </button>
           <button onclick="imprimirPedidoActual()" class="btn btn-outline">
-            🖨 Imprimir
+            🖨 Imprimir Pedido
           </button>
           <button onclick="reenviarCorreoBodegaActual(event)" class="btn btn-outline">
             📧 Reenviar a Bodega

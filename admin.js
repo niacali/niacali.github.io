@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyJ7sXc6UYELvY56e8j7C2BYty01cSnSmWXFYzMY22egfq9IpnhRxEYtDSTgFSq1A71/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzYErn8EFDFROTJEg6Te2CD-G9zoi1ABvb6JWx3FS7mXSnOBGC7SBFUtOetACaqKePN/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 
@@ -84,6 +84,7 @@ let productoEnEdicion = null;
 let categoriaEnEdicion = null;
 let pedidosFiltroTexto = "";
 let pedidosFiltroEstado = "pendiente";
+let manifiestosPedidoActual = null;
 
 // ═══════════════════════════════════════════════════════════════════════
 // AUTENTICACIÓN
@@ -287,6 +288,9 @@ function renderizarPedidosAdmin(lista = pedidosAdmin) {
           <button onclick="reenviarCorreoBodega(${realIndex >= 0 ? realIndex : index}, event)" class="btn-icon btn-icon-mail" title="Reenviar alistamiento a bodega" aria-label="Reenviar correo de alistamiento del pedido ${idDisplay}">
             <span class="material-symbols-outlined btn-icon-symbol">forward_to_inbox</span>
           </button>
+          <button onclick="generarPdfManifiestosPedido(${realIndex >= 0 ? realIndex : index}, event)" class="btn-icon btn-icon-manifiesto" title="Generar PDF de manifiestos" aria-label="Generar PDF de manifiestos del pedido ${idDisplay}">
+            <span class="material-symbols-outlined btn-icon-symbol">description</span>
+          </button>
           <button onclick="exportarPedidoCSV(${realIndex >= 0 ? realIndex : index})" class="btn-icon btn-icon-export" title="Exportar CSV" aria-label="Exportar pedido ${idDisplay} en CSV">
             <span class="material-symbols-outlined btn-icon-symbol">download</span>
           </button>
@@ -409,9 +413,260 @@ async function verDetallePedido(idPedido) {
   }
 }
 
+function escaparHtmlManifiestos(valor) {
+  return String(valor ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderizarManifiestosPedido(resultado) {
+  const resumenDiv = document.getElementById("pedidoManifiestosResumen");
+  const listaDiv = document.getElementById("pedidoManifiestosLista");
+  if (!resumenDiv || !listaDiv) return;
+
+  const manifiestos = Array.isArray(resultado?.manifiestos) ? resultado.manifiestos : [];
+  const faltantes = Array.isArray(resultado?.items_sin_manifiesto) ? resultado.items_sin_manifiesto : [];
+  const noEncontrados = Array.isArray(resultado?.archivos_no_encontrados) ? resultado.archivos_no_encontrados : [];
+
+  const resumenBg = resultado?.has_warnings ? "#fff3cd" : "#d4edda";
+  const resumenColor = resultado?.has_warnings ? "#856404" : "#155724";
+  const resumenBorder = resultado?.has_warnings ? "#ffc107" : "#28a745";
+
+  resumenDiv.innerHTML = `
+    <div style="padding: 12px 14px; border-left: 4px solid ${resumenBorder}; background: ${resumenBg}; color: ${resumenColor}; border-radius: 8px;">
+      <strong>Resumen:</strong>
+      ${Number(resultado?.total_encontrados || 0)} manifiesto(s) encontrado(s)
+      · ${Number(resultado?.total_faltantes || 0)} alerta(s)
+    </div>
+  `;
+
+  if (manifiestos.length === 0 && faltantes.length === 0 && noEncontrados.length === 0) {
+    listaDiv.innerHTML = `
+      <div style="padding: 14px; background: #f8f9fa; border-radius: 8px; color: #666; text-align: center;">
+        No hay manifiestos asociados a este pedido.
+      </div>
+    `;
+    return;
+  }
+
+  const cards = manifiestos.map(item => {
+    const productos = Array.isArray(item.productos)
+      ? item.productos.map(prod => `<li>${escaparHtmlManifiestos(prod.producto)} · Cantidad: ${Number(prod.cantidad || 0)}${prod.referencia ? ` · Ref: ${escaparHtmlManifiestos(prod.referencia)}` : ""}</li>`).join("")
+      : "";
+
+    const estadoColor = item.found ? "#1b5e20" : "#b71c1c";
+    const estadoBg = item.found ? "#e8f5e9" : "#ffebee";
+
+    return `
+      <div style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+        <div style="display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px;">
+          <div>
+            <strong style="font-size: 15px; color: #333;">${escaparHtmlManifiestos(item.manifest_number)}</strong>
+            <div style="font-size: 12px; color: #666; margin-top: 2px;">${escaparHtmlManifiestos(item.file_name || "")}</div>
+          </div>
+          <span style="padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: ${estadoBg}; color: ${estadoColor};">
+            ${item.found ? "Encontrado" : "No encontrado"}
+          </span>
+        </div>
+        <ul style="margin: 0 0 10px 18px; padding: 0; color: #444;">${productos || "<li>Sin productos asociados</li>"}</ul>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          ${item.found ? `<a href="${item.view_url}" target="_blank" rel="noopener" class="btn btn-outline btn-small">🔎 Abrir PDF</a>` : `<span style="font-size: 12px; color: #b71c1c; font-weight: 600;">${escaparHtmlManifiestos(item.warning || "Archivo no encontrado en Drive")}</span>`}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const faltantesHtml = (faltantes.length || noEncontrados.length)
+    ? `
+      <div style="padding: 12px 14px; border-left: 4px solid #f57c00; background: #fff8e1; color: #7a5200; border-radius: 8px;">
+        <strong>Alertas:</strong>
+        <ul style="margin: 8px 0 0 18px; padding: 0;">
+          ${faltantes.map(item => `<li>${escaparHtmlManifiestos(item.producto)} sin manifiesto asignado</li>`).join("")}
+          ${noEncontrados.map(item => `<li>El PDF ${escaparHtmlManifiestos(item.manifest_number)}.pdf no fue encontrado en Drive</li>`).join("")}
+        </ul>
+      </div>
+    `
+    : "";
+
+  listaDiv.innerHTML = cards + faltantesHtml;
+}
+
+async function cargarManifiestosPedido(idPedido) {
+  const resumenDiv = document.getElementById("pedidoManifiestosResumen");
+  const listaDiv = document.getElementById("pedidoManifiestosLista");
+  const toastAdmin = obtenerToastAdmin();
+
+  if (resumenDiv) {
+    resumenDiv.innerHTML = `
+      <div style="padding: 12px 14px; border-left: 4px solid #1e88e5; background: #e3f2fd; color: #0d47a1; border-radius: 8px;">
+        🔎 Buscando manifiestos del pedido...
+      </div>
+    `;
+  }
+  if (listaDiv) listaDiv.innerHTML = "";
+
+  try {
+    const response = await fetch(`${API_URL}?action=getPedidoManifiestos&key=${API_KEY}&idPedido=${encodeURIComponent(idPedido)}`);
+    const data = await response.json();
+
+    if (!data || !data.ok) {
+      throw new Error(data?.error || "No se pudieron cargar los manifiestos");
+    }
+
+    manifiestosPedidoActual = data;
+    renderizarManifiestosPedido(data);
+
+    if (data.has_warnings && toastAdmin && toastAdmin.advertencia) {
+      toastAdmin.advertencia(`Pedido #${idPedido}: ${data.total_faltantes} alerta(s) de manifiesto`);
+    }
+  } catch (error) {
+    console.error("Error cargando manifiestos del pedido:", error);
+    manifiestosPedidoActual = null;
+    if (resumenDiv) {
+      resumenDiv.innerHTML = `
+        <div style="padding: 12px 14px; border-left: 4px solid #dc3545; background: #f8d7da; color: #721c24; border-radius: 8px;">
+          ❌ Error cargando manifiestos: ${escaparHtmlManifiestos(error.message || error)}
+        </div>
+      `;
+    }
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error("No se pudieron consultar los manifiestos del pedido");
+    }
+  }
+}
+
+async function generarPdfManifiestosPedido(index, event) {
+  const pedido = pedidosAdmin[index];
+  const toastAdmin = obtenerToastAdmin();
+
+  if (!pedido) {
+    if (toastAdmin && toastAdmin.error) toastAdmin.error("Pedido no encontrado");
+    return;
+  }
+
+  const boton = event?.target?.closest ? event.target.closest("button") : (event?.currentTarget || event?.target || null);
+  const textoOriginal = boton ? boton.innerHTML : "";
+
+  if (boton) {
+    boton.disabled = true;
+    boton.setAttribute("aria-busy", "true");
+    boton.style.opacity = "0.7";
+  }
+
+  try {
+    const idPedido = pedido.id_pedido || pedido.pedido_id || pedido.id;
+    await cargarManifiestosPedido(idPedido);
+    imprimirManifiestosActual();
+  } catch (error) {
+    console.error("Error generando PDF de manifiestos:", error);
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error(error.message || "No se pudo generar la vista de manifiestos");
+    }
+  } finally {
+    if (boton) {
+      boton.disabled = false;
+      boton.removeAttribute("aria-busy");
+      boton.style.opacity = "";
+      boton.innerHTML = textoOriginal;
+    }
+  }
+}
+
+function imprimirManifiestosActual() {
+  const toastAdmin = obtenerToastAdmin();
+  const data = manifiestosPedidoActual;
+
+  if (!data || !Array.isArray(data.manifiestos)) {
+    if (toastAdmin && toastAdmin.info) {
+      toastAdmin.info("Primero consulta los manifiestos del pedido");
+    }
+    return;
+  }
+
+  const encontrados = data.manifiestos.filter(item => item.found && item.preview_url);
+  if (encontrados.length === 0) {
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error("No hay manifiestos disponibles para imprimir");
+    }
+    return;
+  }
+
+  const win = window.open("", "ImpresionManifiestos", "width=1100,height=800");
+  if (!win) {
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error("El navegador bloqueó la ventana de impresión");
+    }
+    return;
+  }
+
+  const bloques = encontrados.map((item, index) => {
+    const productos = Array.isArray(item.productos)
+      ? item.productos.map(prod => `<li>${escaparHtmlManifiestos(prod.producto)} · Cantidad: ${Number(prod.cantidad || 0)}</li>`).join("")
+      : "";
+
+    return `
+      <section style="margin-bottom: 26px; break-inside: avoid; page-break-inside: avoid;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+          <div>
+            <h2 style="margin:0; font-size:18px; color:#1f2937;">📄 Manifiesto ${escaparHtmlManifiestos(item.manifest_number)}</h2>
+            <div style="font-size:12px; color:#666; margin-top:4px;">${escaparHtmlManifiestos(item.file_name || "")}</div>
+          </div>
+          <a href="${item.view_url}" target="_blank" rel="noopener" style="padding:8px 12px; background:#0d6efd; color:#fff; text-decoration:none; border-radius:8px; font-size:13px;">Abrir PDF</a>
+        </div>
+        <ul style="margin:0 0 12px 18px; color:#444;">${productos}</ul>
+        <iframe src="${item.preview_url}" style="width:100%; height:900px; border:1px solid #ddd; border-radius:10px; background:#fff;"></iframe>
+      </section>
+      ${index < encontrados.length - 1 ? `<div style="page-break-after: always;"></div>` : ""}
+    `;
+  }).join("");
+
+  const faltantes = Array.isArray(data.items_sin_manifiesto) ? data.items_sin_manifiesto : [];
+  const faltantesHtml = faltantes.length
+    ? `<div style="margin:14px 0 18px; padding:12px 14px; border-left:4px solid #f57c00; background:#fff8e1; color:#7a5200; border-radius:8px;"><strong>Alertas:</strong><ul style="margin:8px 0 0 18px;">${faltantes.map(item => `<li>${escaparHtmlManifiestos(item.producto)} sin manifiesto asignado</li>`).join("")}</ul></div>`
+    : "";
+
+  win.document.write(`
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Manifiestos Pedido #${escaparHtmlManifiestos(data.idPedido || pedidoEnEdicion || "")}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f7fb; color: #222; }
+        .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+        .toolbar button { padding:10px 14px; border:none; border-radius:8px; background:#198754; color:#fff; cursor:pointer; font-weight:600; }
+        .toolbar .secondary { background:#0d6efd; }
+        .header { background:#fff; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
+        @media print {
+          .toolbar { display:none !important; }
+          body { margin: 0; background: #fff; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="toolbar">
+        <button onclick="window.print()">🖨 Imprimir esta vista</button>
+        <button class="secondary" onclick="window.close()">Cerrar</button>
+      </div>
+      <div class="header">
+        <h1 style="margin:0 0 8px 0; font-size:22px;">Manifiestos del pedido #${escaparHtmlManifiestos(data.idPedido || pedidoEnEdicion || "")}</h1>
+        <div>Se encontraron ${encontrados.length} manifiesto(s) disponible(s) para impresión.</div>
+        ${faltantesHtml}
+      </div>
+      ${bloques}
+    </body>
+    </html>
+  `);
+  win.document.close();
+}
+
 function cerrarModalDetallePedido() {
   document.getElementById("modalDetallePedido").style.display = "none";
   pedidoEnEdicion = null;
+  manifiestosPedidoActual = null;
 }
 
 function cerrarModalEditarPedido() {
@@ -1015,6 +1270,8 @@ window.imprimirPedido = imprimirPedido;
 window.imprimirPedidoActual = imprimirPedidoActual;
 window.reenviarCorreoBodega = reenviarCorreoBodega;
 window.reenviarCorreoBodegaActual = reenviarCorreoBodegaActual;
+window.generarPdfManifiestosPedido = generarPdfManifiestosPedido;
+window.imprimirManifiestosActual = imprimirManifiestosActual;
 
 // Funciones de categorías
 window.abrirFormCategoria = abrirFormCategoria;

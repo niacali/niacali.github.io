@@ -5,6 +5,7 @@
   const SPREADSHEET_ID = "1MEhAYz3r3xy70LhlWEjO8QdB9y0C1LMrDTQgutiT5RA";
   const CLOUDFLARE_IMAGE_PROXY = "https://tienda-image-proxy.pedidosnia-cali.workers.dev";
   const DRIVE_IMAGES_FOLDER_ID = "1EDyKQ1ISi1UyieKQ01JgywP-whGF5A9U";
+  const DRIVE_MANIFESTS_FOLDER_ID = "1zY_e20P00ydCI9nu3234gQeHKXvQrXJs"; // Opcional: ID de la carpeta específica de manifiestos PDF
 
   const SHEET_PRODUCTOS = "Productos";
   const SHEET_CATEGORIAS = "categorias";
@@ -49,6 +50,9 @@
 
         case "getPedidoDetalle":
           return jsonOutput(getPedidoDetalle(e.parameter.idPedido));
+
+        case "getPedidoManifiestos":
+          return jsonOutput(getPedidoManifiestos(e.parameter.idPedido));
 
         case "obtenerConfiguracion":
           return jsonOutput(obtenerConfiguracion());
@@ -179,6 +183,26 @@
     } catch (e) {
       return str || [];
     }
+  }
+
+  function obtenerDriveManifiestosFolderId() {
+    try {
+      const config = obtenerConfiguracion();
+      const folderIdConfig = config && config.success
+        ? String(config.drive_manifiestos_folder_id || config.manifiestos_folder_id || "").trim()
+        : "";
+      return folderIdConfig || String(DRIVE_MANIFESTS_FOLDER_ID || "").trim();
+    } catch (error) {
+      return String(DRIVE_MANIFESTS_FOLDER_ID || "").trim();
+    }
+  }
+
+  function obtenerCarpetaManifiestos() {
+    const folderId = obtenerDriveManifiestosFolderId();
+    if (!folderId) {
+      throw new Error("Configura drive_manifiestos_folder_id en la hoja Config o DRIVE_MANIFESTS_FOLDER_ID en code.gs");
+    }
+    return DriveApp.getFolderById(folderId);
   }
 
   function jsonOutput(obj) {
@@ -563,6 +587,7 @@
         const pIdxPrecio2 = pHeaders.indexOf("precio2");
         const pIdxPrecio3 = pHeaders.indexOf("precio3");
         const pIdxPrecio1 = pHeaders.indexOf("precio");
+        const pIdxManifiesto = pHeaders.indexOf("manifiesto_numero");
 
         productosData.forEach(pRow => {
           const key = String(pRow[pIdxId] || "").trim();
@@ -573,7 +598,8 @@
             contabilidad: pIdxContabilidad >= 0 ? pRow[pIdxContabilidad] : "",
             precio2: pIdxPrecio2 >= 0 ? pRow[pIdxPrecio2] : "",
             precio3: pIdxPrecio3 >= 0 ? pRow[pIdxPrecio3] : "",
-            precio1: pIdxPrecio1 >= 0 ? pRow[pIdxPrecio1] : ""
+            precio1: pIdxPrecio1 >= 0 ? pRow[pIdxPrecio1] : "",
+            manifiesto_numero: pIdxManifiesto >= 0 ? pRow[pIdxManifiesto] : ""
           };
         });
       }
@@ -593,6 +619,7 @@
           producto: row[idxProducto] || productoInfo.nombre || "",
           referencia: productoInfo.referencia || "",
           contabilidad: productoInfo.contabilidad || "",
+          manifiesto_numero: productoInfo.manifiesto_numero || "",
           precio2: productoInfo.precio2 || "",
           precio3: productoInfo.precio3 || "",
           precio1: productoInfo.precio1 || "",
@@ -603,6 +630,150 @@
           costo_venta: idxCostoVenta >= 0 ? row[idxCostoVenta] : ""
         };
       });
+  }
+
+  function normalizarNombreManifiesto(valor) {
+    return String(valor || "").trim().replace(/\.pdf$/i, "");
+  }
+
+  function buscarArchivoManifiesto(manifiestoNumero) {
+    const nombreBase = normalizarNombreManifiesto(manifiestoNumero);
+    if (!nombreBase) {
+      return { found: false, fileName: "", error: "Número de manifiesto vacío", totalMatches: 0 };
+    }
+
+    try {
+      const nombrePdf = `${nombreBase}.pdf`;
+      const folder = obtenerCarpetaManifiestos();
+      const files = folder.getFilesByName(nombrePdf);
+
+      let firstFile = null;
+      let totalMatches = 0;
+
+      while (files.hasNext()) {
+        const file = files.next();
+        totalMatches++;
+        if (!firstFile) firstFile = file;
+      }
+
+      if (!firstFile) {
+        return {
+          found: false,
+          fileName: nombrePdf,
+          manifest_number: nombreBase,
+          totalMatches: 0,
+          error: "Archivo no encontrado en la carpeta específica de manifiestos"
+        };
+      }
+
+      const fileId = firstFile.getId();
+      return {
+        found: true,
+        manifest_number: nombreBase,
+        fileId: fileId,
+        fileName: firstFile.getName(),
+        totalMatches: totalMatches,
+        duplicateFiles: totalMatches > 1,
+        viewUrl: firstFile.getUrl(),
+        previewUrl: `https://drive.google.com/file/d/${fileId}/preview`,
+        downloadUrl: `https://drive.google.com/uc?export=download&id=${fileId}`
+      };
+    } catch (error) {
+      return {
+        found: false,
+        fileName: `${nombreBase}.pdf`,
+        manifest_number: nombreBase,
+        totalMatches: 0,
+        error: error.toString()
+      };
+    }
+  }
+
+  function getPedidoManifiestos(idPedido) {
+    if (!idPedido) {
+      return { ok: false, error: "ID de pedido requerido" };
+    }
+
+    try {
+      const items = getPedidoDetalle(idPedido);
+      if (!items || items.length === 0) {
+        return { ok: false, error: "El pedido no tiene items registrados" };
+      }
+
+      const manifiestosMap = {};
+      const itemsSinManifiesto = [];
+      const archivosNoEncontrados = [];
+
+      items.forEach(item => {
+        const numero = normalizarNombreManifiesto(item.manifiesto_numero);
+        const productoNombre = item.producto || item.nombre || "Producto";
+        const cantidad = Number(item.cantidad || 0);
+
+        if (!numero) {
+          itemsSinManifiesto.push({
+            id_producto: item.id_producto || "",
+            producto: productoNombre,
+            cantidad: cantidad,
+            referencia: item.referencia || ""
+          });
+          return;
+        }
+
+        if (!manifiestosMap[numero]) {
+          const encontrado = buscarArchivoManifiesto(numero);
+          manifiestosMap[numero] = {
+            manifest_number: numero,
+            found: !!encontrado.found,
+            file_id: encontrado.fileId || "",
+            file_name: encontrado.fileName || `${numero}.pdf`,
+            view_url: encontrado.viewUrl || "",
+            preview_url: encontrado.previewUrl || "",
+            download_url: encontrado.downloadUrl || "",
+            duplicate_files: !!encontrado.duplicateFiles,
+            total_matches: Number(encontrado.totalMatches || 0),
+            warning: encontrado.error || "",
+            productos: []
+          };
+
+          if (!encontrado.found) {
+            archivosNoEncontrados.push({
+              manifest_number: numero,
+              producto: productoNombre,
+              referencia: item.referencia || ""
+            });
+          }
+        }
+
+        manifiestosMap[numero].productos.push({
+          id_producto: item.id_producto || "",
+          producto: productoNombre,
+          cantidad: cantidad,
+          referencia: item.referencia || ""
+        });
+      });
+
+      const manifiestos = Object.keys(manifiestosMap)
+        .sort()
+        .map(key => manifiestosMap[key]);
+
+      const totalEncontrados = manifiestos.filter(m => m.found).length;
+      const totalFaltantes = itemsSinManifiesto.length + archivosNoEncontrados.length;
+
+      return {
+        ok: true,
+        idPedido: idPedido,
+        total_items: items.length,
+        total_manifiestos: manifiestos.length,
+        total_encontrados: totalEncontrados,
+        total_faltantes: totalFaltantes,
+        has_warnings: totalFaltantes > 0,
+        manifiestos: manifiestos,
+        items_sin_manifiesto: itemsSinManifiesto,
+        archivos_no_encontrados: archivosNoEncontrados
+      };
+    } catch (error) {
+      return { ok: false, error: error.toString() };
+    }
   }
 
   function actualizarEstadoPedido(idPedido, nuevoEstado) {
