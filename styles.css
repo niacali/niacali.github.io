@@ -825,11 +825,8 @@ body {
   width: max-content;
   min-width: 100%;
   animation: tickerScroll 28s linear infinite;
+  animation-play-state: running;
   will-change: transform;
-}
-
-.banner-novedades-cinta-wrap:hover .banner-novedades-cinta {
-  animation-play-state: paused;
 }
 
 .banner-novedades-track {

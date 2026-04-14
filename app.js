@@ -364,6 +364,15 @@ function renderizarCintaNovedades(novedades) {
   if (!ticker) return;
 
   ticker.innerHTML = "";
+  ticker.style.animationPlayState = "running";
+
+  const pausarCinta = () => {
+    ticker.style.animationPlayState = "paused";
+  };
+
+  const reanudarCinta = () => {
+    ticker.style.animationPlayState = "running";
+  };
 
   const items = Array.isArray(novedades) ? novedades.slice(0, 12) : [];
   if (!items.length) return;
@@ -406,6 +415,11 @@ function renderizarCintaNovedades(novedades) {
         precio.textContent = `$ ${precioNumerico.toLocaleString("es-CO")}`;
         boton.appendChild(precio);
       }
+
+      boton.addEventListener("mouseenter", pausarCinta);
+      boton.addEventListener("mouseleave", reanudarCinta);
+      boton.addEventListener("focus", pausarCinta);
+      boton.addEventListener("blur", reanudarCinta);
 
       boton.addEventListener("click", (event) => {
         event.preventDefault();
