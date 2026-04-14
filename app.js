@@ -59,6 +59,7 @@ let textoBusqueda = "";
 let ordenProductos = "az";
 let busquedaDebounceTimer = null;
 let mostrandoNovedades = false;
+let productoNovedadObjetivoId = "";
 const BANNER_DISMISS_KEY = "nia_banner_novedades_dismissed";
 const BANNER_DISMISS_STATE_KEY = "nia_banner_novedades_dismissed_state";
 const BANNER_DISMISS_TTL = 24 * 60 * 60 * 1000; // 24 horas
@@ -358,6 +359,70 @@ function construirFirmaNovedades(novedades) {
     .join("|");
 }
 
+function renderizarCintaNovedades(novedades) {
+  const ticker = document.getElementById("bannerNovedadesTicker");
+  if (!ticker) return;
+
+  ticker.innerHTML = "";
+
+  const items = Array.isArray(novedades) ? novedades.slice(0, 12) : [];
+  if (!items.length) return;
+
+  const crearTrack = (productos, oculto = false) => {
+    const track = document.createElement("div");
+    track.className = "banner-novedades-track";
+    if (oculto) track.setAttribute("aria-hidden", "true");
+
+    productos.forEach(producto => {
+      const fallbackSVG = generarFallbackSVG(producto.nombre, Number(producto.id) || 0);
+      const imagenProcesada = convertirDriveUrlAProxy(producto.imagen) || producto.imagen || fallbackSVG;
+      const productoConImagen = {
+        ...producto,
+        imagen: imagenProcesada
+      };
+
+      const boton = document.createElement("button");
+      boton.type = "button";
+      boton.className = "banner-novedades-item banner-novedades-item--imagen";
+      boton.title = producto.nombre || "Producto nuevo";
+      boton.setAttribute("aria-label", producto.nombre || "Producto nuevo");
+
+      const img = document.createElement("img");
+      img.className = "banner-novedades-thumb";
+      img.alt = producto.nombre || "Producto nuevo";
+      img.loading = "eager";
+      cargarImagenDirecta(img, imagenProcesada, fallbackSVG);
+      boton.appendChild(img);
+
+      const badgeNuevo = document.createElement("span");
+      badgeNuevo.className = "banner-novedades-etiqueta";
+      badgeNuevo.textContent = "Nuevo";
+      boton.appendChild(badgeNuevo);
+
+      const precioNumerico = Number(producto.precio || 0);
+      if (precioNumerico > 0) {
+        const precio = document.createElement("span");
+        precio.className = "banner-novedades-precio";
+        precio.textContent = `$ ${precioNumerico.toLocaleString("es-CO")}`;
+        boton.appendChild(precio);
+      }
+
+      boton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        irANovedadesDesdeBanner(producto.id);
+      });
+
+      track.appendChild(boton);
+    });
+
+    return track;
+  };
+
+  ticker.appendChild(crearTrack(items));
+  ticker.appendChild(crearTrack(items, true));
+}
+
 function mostrarBannerNovedades(novedades) {
   const banner = document.getElementById("bannerNovedades");
   if (!banner) return;
@@ -366,6 +431,8 @@ function mostrarBannerNovedades(novedades) {
     banner.style.display = "none";
     return;
   }
+
+  renderizarCintaNovedades(novedades);
 
   ultimaFirmaNovedades = construirFirmaNovedades(novedades);
 
@@ -384,11 +451,6 @@ function mostrarBannerNovedades(novedades) {
 
   // Limpiar key legado para evitar bloqueos inesperados en despliegues nuevos
   localStorage.removeItem(BANNER_DISMISS_KEY);
-
-  const conteo = document.getElementById("bannerNovedadesConteo");
-  if (conteo) {
-    conteo.textContent = `${novedades.length} producto${novedades.length > 1 ? "s" : ""} nuevo${novedades.length > 1 ? "s" : ""}`;
-  }
 
   banner.style.display = "flex";
   // Forzar re-animación
@@ -413,10 +475,27 @@ function cerrarBannerNovedades() {
   }));
 }
 
-function verNovedades() {
+function enfocarProductoNovedad() {
+  if (!productoNovedadObjetivoId) return;
+
+  const cardObjetivo = productosDiv && productosDiv.querySelector(`.card[data-product-id="${productoNovedadObjetivoId}"]`);
+  if (!cardObjetivo) return;
+
+  cardObjetivo.classList.add("card-destacada");
+  cardObjetivo.scrollIntoView({ behavior: "smooth", block: "center" });
+
+  setTimeout(() => {
+    cardObjetivo.classList.remove("card-destacada");
+  }, 2200);
+
+  productoNovedadObjetivoId = "";
+}
+
+function irANovedadesDesdeBanner(productoId = "") {
   mostrandoNovedades = true;
   categoriaSeleccionada = null;
   textoBusqueda = "";
+  productoNovedadObjetivoId = String(productoId || "");
   page = 0;
   if (busquedaInput) busquedaInput.value = "";
   actualizarBotonLimpiarBusqueda();
@@ -424,7 +503,14 @@ function verNovedades() {
   categoriaBreadcrumb.innerHTML = `<span class="breadcrumb-nuevo">🆕 Novedades</span>`;
   mostrarProductos();
   cargar();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  if (productosSection) {
+    productosSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function verNovedades() {
+  irANovedadesDesdeBanner("");
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1137,6 +1223,7 @@ function render(productos, emptyMessage = "No hay productos en esta categoría")
     const cta = card.querySelector(".card-imagen-cta");
 
     const productId = String(p.id);
+    card.dataset.productId = productId;
     wrapper.dataset.productId = productId;
     img.dataset.productId = productId;
     cta.dataset.productId = productId;
@@ -1221,6 +1308,13 @@ async function cargar() {
 
     const ordenados = ordenarProductos(filtrados);
 
+    if (mostrandoNovedades && productoNovedadObjetivoId) {
+      const indiceObjetivo = ordenados.findIndex(p => String(p.id) === String(productoNovedadObjetivoId));
+      if (indiceObjetivo >= 0) {
+        page = Math.floor(indiceObjetivo / LIMIT);
+      }
+    }
+
     if (query) {
       categoriaBreadcrumb.innerHTML = `Resultados: <span class="breadcrumb-muted">"${textoBusqueda}"</span>`;
     } else if (mostrandoNovedades) {
@@ -1252,6 +1346,7 @@ async function cargar() {
     }
 
     render(items, emptyMessage);
+    enfocarProductoNovedad();
 
     document.getElementById("prev").disabled = page === 0 || ordenados.length === 0;
     document.getElementById("next").disabled = ordenados.length === 0 || start + LIMIT >= ordenados.length;

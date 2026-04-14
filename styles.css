@@ -672,6 +672,12 @@ body {
   transform: translateY(-4px);
 }
 
+.card.card-destacada {
+  box-shadow: 0 0 0 3px rgba(251, 192, 45, 0.95), 0 12px 28px rgba(13, 71, 161, 0.28);
+  border-color: #fbc02d;
+  transform: translateY(-4px);
+}
+
 .card img {
   width: 100%;
   height: 140px;
@@ -756,19 +762,21 @@ body {
   50% { box-shadow: 0 2px 14px rgba(229,57,53,0.75); }
 }
 
-/* ─── Banner de Novedades ─── */
+/* ─── Cinta dinámica de novedades ─── */
 .banner-novedades {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  background: linear-gradient(120deg, #0d47a1 0%, #00838f 46%, #fbc02d 100%);
-  color: #fff;
-  padding: 0.9rem 1.25rem;
-  box-shadow: 0 8px 20px rgba(0, 60, 120, 0.24), inset 0 -1px 0 rgba(255, 255, 255, 0.22);
+  background: linear-gradient(135deg, #111111 0%, #2b2b2b 36%, #c62828 100%);
+  color: #ffffff;
+  padding: 0.85rem 1rem 1rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24), inset 0 -1px 0 rgba(255, 255, 255, 0.12);
   position: relative;
   overflow: hidden;
   margin-bottom: 0.6rem;
+  border-top: 2px solid #c62828;
+  border-bottom: 1px solid #d9d9d9;
 }
 
 .banner-novedades::before {
@@ -776,12 +784,12 @@ body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 12% 26%, rgba(255, 255, 255, 0.24), transparent 36%),
-    radial-gradient(circle at 86% 72%, rgba(255, 255, 255, 0.2), transparent 33%),
+    radial-gradient(circle at 14% 28%, rgba(255, 255, 255, 0.12), transparent 34%),
+    radial-gradient(circle at 84% 70%, rgba(198, 40, 40, 0.2), transparent 30%),
     repeating-linear-gradient(
       -45deg,
-      rgba(255, 255, 255, 0.05) 0px,
-      rgba(255, 255, 255, 0.05) 2px,
+      rgba(255, 255, 255, 0.03) 0px,
+      rgba(255, 255, 255, 0.03) 2px,
       transparent 2px,
       transparent 14px
     );
@@ -790,95 +798,119 @@ body {
 
 .banner-novedades-content {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0;
   width: 100%;
-  max-width: 960px;
+  max-width: 1120px;
   position: relative;
 }
 
-.banner-novedades-texto {
+.banner-novedades-cinta-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(158, 158, 158, 0.14) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.banner-novedades-cinta-viewport {
+  overflow: hidden;
+  width: 100%;
+}
+
+.banner-novedades-cinta {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  width: max-content;
+  min-width: 100%;
+  animation: tickerScroll 28s linear infinite;
+  will-change: transform;
 }
 
-.banner-novedades-icono {
-  font-size: 1.8rem;
-  flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.22));
-  animation: bounceIcon 1.7s ease-in-out infinite;
+.banner-novedades-cinta-wrap:hover .banner-novedades-cinta {
+  animation-play-state: paused;
 }
 
-@keyframes bounceIcon {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-5px) scale(1.08); }
-}
-
-.banner-novedades-titulo {
-  display: block;
-  font-size: 1.02rem;
-  font-weight: 800;
-  line-height: 1.3;
-  letter-spacing: 0.01em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
-}
-
-.banner-novedades-subtitulo {
-  display: block;
-  font-size: 0.85rem;
-  opacity: 0.93;
-  margin-top: 0.1rem;
-}
-
-.banner-novedades-acciones {
+.banner-novedades-track {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.9rem;
+  padding: 0.45rem 0.75rem;
   flex-shrink: 0;
 }
 
-.banner-btn-ver {
-  background: linear-gradient(135deg, #fffde7 0%, #ffe082 100%);
-  color: #0d3556;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  padding: 0.52rem 1.15rem;
-  border-radius: 999px;
-  font-size: 0.86rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition: transform 0.18s, box-shadow 0.22s, filter 0.22s;
-  white-space: nowrap;
-  box-shadow: 0 5px 14px rgba(12, 32, 61, 0.28);
-}
-
-.banner-btn-ver:hover {
-  transform: translateY(-1px) scale(1.04);
-  filter: saturate(1.08);
-  box-shadow: 0 7px 18px rgba(12, 32, 61, 0.34);
-}
-
-.banner-btn-cerrar {
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  font-size: 0.95rem;
-  cursor: pointer;
-  display: flex;
+.banner-novedades-item {
+  position: relative;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
-  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #f4f4f4 0%, #dcdcdc 100%);
+  color: #111111;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  overflow: hidden;
 }
 
-.banner-btn-cerrar:hover {
-  background: rgba(255, 255, 255, 0.38);
+.banner-novedades-item--imagen {
+  width: 104px;
+  height: 104px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.22);
 }
+
+.banner-novedades-item:hover {
+  transform: translateY(-2px) scale(1.03);
+  background: linear-gradient(180deg, #ffffff 0%, #ececec 100%);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.32);
+  border-color: rgba(198, 40, 40, 0.45);
+}
+
+.banner-novedades-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+  background: #ffffff;
+  padding: 0.25rem;
+}
+
+.banner-novedades-etiqueta {
+  position: absolute;
+  top: 0.35rem;
+  left: 0.35rem;
+  background: rgba(198, 40, 40, 0.95);
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 0.18rem 0.4rem;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.24);
+}
+
+.banner-novedades-precio {
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  background: rgba(17, 17, 17, 0.88);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.68rem;
+  padding: 0.22rem 0.42rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(4px);
+}
+
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
 
 /* Animación de entrada / salida del banner */
 .banner-enter {
@@ -913,18 +945,21 @@ body {
   .banner-novedades-content {
     gap: 0.65rem;
   }
-  .banner-novedades-icono {
-    font-size: 1.45rem;
+  .banner-novedades-item--imagen {
+    width: 88px;
+    height: 88px;
   }
-  .banner-novedades-titulo {
-    font-size: 0.9rem;
+
+  .banner-novedades-etiqueta {
+    font-size: 0.55rem;
+    top: 0.25rem;
+    left: 0.25rem;
   }
-  .banner-novedades-subtitulo {
-    display: none;
-  }
-  .banner-btn-ver {
-    padding: 0.45rem 0.8rem;
-    font-size: 0.82rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner-novedades-cinta {
+    animation: none;
   }
 }
 

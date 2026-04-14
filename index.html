@@ -60,19 +60,13 @@
   <!-- MAIN CONTENT -->
   <main class="main-content">
 
-    <!-- BANNER NOVEDADES -->
+    <!-- CINTA DE NOVEDADES -->
     <div id="bannerNovedades" class="banner-novedades" style="display: none;" role="banner" aria-label="Novedades en el catálogo">
       <div class="banner-novedades-content">
-        <div class="banner-novedades-texto">
-          <span class="banner-novedades-icono">🆕</span>
-          <div>
-            <strong class="banner-novedades-titulo">¡Nuevos productos en el catálogo!</strong>
-            <span class="banner-novedades-subtitulo" id="bannerNovedadesConteo"></span>
+        <div class="banner-novedades-cinta-wrap" title="Ver productos nuevos">
+          <div class="banner-novedades-cinta-viewport">
+            <div id="bannerNovedadesTicker" class="banner-novedades-cinta" aria-live="polite"></div>
           </div>
-        </div>
-        <div class="banner-novedades-acciones">
-          <button id="bannerBtn" class="banner-btn-ver" onclick="verNovedades()">Ver novedades</button>
-          <button class="banner-btn-cerrar" onclick="cerrarBannerNovedades()" aria-label="Cerrar banner">✕</button>
         </div>
       </div>
     </div>
