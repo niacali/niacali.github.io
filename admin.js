@@ -8,6 +8,7 @@
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzYErn8EFDFROTJEg6Te2CD-G9zoi1ABvb6JWx3FS7mXSnOBGC7SBFUtOetACaqKePN/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
+const API_PDF_WORKER_URL = "https://pedido-pdf.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -288,8 +289,8 @@ function renderizarPedidosAdmin(lista = pedidosAdmin) {
           <button onclick="reenviarCorreoBodega(${realIndex >= 0 ? realIndex : index}, event)" class="btn-icon btn-icon-mail" title="Reenviar alistamiento a bodega" aria-label="Reenviar correo de alistamiento del pedido ${idDisplay}">
             <span class="material-symbols-outlined btn-icon-symbol">forward_to_inbox</span>
           </button>
-          <button onclick="generarPdfManifiestosPedido(${realIndex >= 0 ? realIndex : index}, event)" class="btn-icon btn-icon-manifiesto" title="Generar PDF de manifiestos" aria-label="Generar PDF de manifiestos del pedido ${idDisplay}">
-            <span class="material-symbols-outlined btn-icon-symbol">description</span>
+          <button onclick="generarPdfManifiestosPedido(${realIndex >= 0 ? realIndex : index}, event)" class="btn-icon btn-icon-manifiesto" title="Descargar PDF unificado de manifiestos" aria-label="Descargar PDF unificado de manifiestos del pedido ${idDisplay}">
+            <span class="material-symbols-outlined btn-icon-symbol">picture_as_pdf</span>
           </button>
           <button onclick="exportarPedidoCSV(${realIndex >= 0 ? realIndex : index})" class="btn-icon btn-icon-export" title="Exportar CSV" aria-label="Exportar pedido ${idDisplay} en CSV">
             <span class="material-symbols-outlined btn-icon-symbol">download</span>
@@ -518,10 +519,9 @@ async function cargarManifiestosPedido(idPedido) {
 
     manifiestosPedidoActual = data;
     renderizarManifiestosPedido(data);
+    mostrarToastResumenManifiestos(data, idPedido);
 
-    if (data.has_warnings && toastAdmin && toastAdmin.advertencia) {
-      toastAdmin.advertencia(`Pedido #${idPedido}: ${data.total_faltantes} alerta(s) de manifiesto`);
-    }
+    return data;
   } catch (error) {
     console.error("Error cargando manifiestos del pedido:", error);
     manifiestosPedidoActual = null;
@@ -535,6 +535,7 @@ async function cargarManifiestosPedido(idPedido) {
     if (toastAdmin && toastAdmin.error) {
       toastAdmin.error("No se pudieron consultar los manifiestos del pedido");
     }
+    throw error;
   }
 }
 
@@ -558,12 +559,12 @@ async function generarPdfManifiestosPedido(index, event) {
 
   try {
     const idPedido = pedido.id_pedido || pedido.pedido_id || pedido.id;
-    await cargarManifiestosPedido(idPedido);
-    imprimirManifiestosActual();
+    const data = await cargarManifiestosPedido(idPedido);
+    await imprimirManifiestosActual(data, idPedido, pedido);
   } catch (error) {
     console.error("Error generando PDF de manifiestos:", error);
     if (toastAdmin && toastAdmin.error) {
-      toastAdmin.error(error.message || "No se pudo generar la vista de manifiestos");
+      toastAdmin.error(error.message || "No se pudo generar el PDF de manifiestos");
     }
   } finally {
     if (boton) {
@@ -575,92 +576,80 @@ async function generarPdfManifiestosPedido(index, event) {
   }
 }
 
-function imprimirManifiestosActual() {
+async function imprimirManifiestosActual(dataParam = null, idPedidoParam = null, pedidoParam = null) {
   const toastAdmin = obtenerToastAdmin();
-  const data = manifiestosPedidoActual;
+  const data = dataParam || manifiestosPedidoActual;
+  const idPedido = idPedidoParam || data?.idPedido || pedidoEnEdicion || "";
+  const pedido = pedidoParam || obtenerPedidoAdminPorId(idPedido) || {};
 
   if (!data || !Array.isArray(data.manifiestos)) {
     if (toastAdmin && toastAdmin.info) {
-      toastAdmin.info("Primero consulta los manifiestos del pedido");
+      toastAdmin.info("No hay información de manifiestos para este pedido");
     }
     return;
   }
 
-  const encontrados = data.manifiestos.filter(item => item.found && item.preview_url);
+  const encontrados = data.manifiestos.filter(item => item.found && (item.download_url || item.view_url || item.preview_url));
   if (encontrados.length === 0) {
     if (toastAdmin && toastAdmin.error) {
-      toastAdmin.error("No hay manifiestos disponibles para imprimir");
+      toastAdmin.error("No hay manifiestos disponibles para consolidar");
     }
     return;
   }
 
-  const win = window.open("", "ImpresionManifiestos", "width=1100,height=800");
-  if (!win) {
-    if (toastAdmin && toastAdmin.error) {
-      toastAdmin.error("El navegador bloqueó la ventana de impresión");
+  try {
+    if (toastAdmin && toastAdmin.info) {
+      toastAdmin.info(`Generando PDF unificado de ${encontrados.length} manifiesto(s) agrupado(s)...`);
     }
-    return;
-  }
 
-  const bloques = encontrados.map((item, index) => {
-    const productos = Array.isArray(item.productos)
-      ? item.productos.map(prod => `<li>${escaparHtmlManifiestos(prod.producto)} · Cantidad: ${Number(prod.cantidad || 0)}</li>`).join("")
-      : "";
-
-    return `
-      <section style="margin-bottom: 26px; break-inside: avoid; page-break-inside: avoid;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-          <div>
-            <h2 style="margin:0; font-size:18px; color:#1f2937;">📄 Manifiesto ${escaparHtmlManifiestos(item.manifest_number)}</h2>
-            <div style="font-size:12px; color:#666; margin-top:4px;">${escaparHtmlManifiestos(item.file_name || "")}</div>
-          </div>
-          <a href="${item.view_url}" target="_blank" rel="noopener" style="padding:8px 12px; background:#0d6efd; color:#fff; text-decoration:none; border-radius:8px; font-size:13px;">Abrir PDF</a>
-        </div>
-        <ul style="margin:0 0 12px 18px; color:#444;">${productos}</ul>
-        <iframe src="${item.preview_url}" style="width:100%; height:900px; border:1px solid #ddd; border-radius:10px; background:#fff;"></iframe>
-      </section>
-      ${index < encontrados.length - 1 ? `<div style="page-break-after: always;"></div>` : ""}
-    `;
-  }).join("");
-
-  const faltantes = Array.isArray(data.items_sin_manifiesto) ? data.items_sin_manifiesto : [];
-  const faltantesHtml = faltantes.length
-    ? `<div style="margin:14px 0 18px; padding:12px 14px; border-left:4px solid #f57c00; background:#fff8e1; color:#7a5200; border-radius:8px;"><strong>Alertas:</strong><ul style="margin:8px 0 0 18px;">${faltantes.map(item => `<li>${escaparHtmlManifiestos(item.producto)} sin manifiesto asignado</li>`).join("")}</ul></div>`
-    : "";
-
-  win.document.write(`
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8">
-      <title>Manifiestos Pedido #${escaparHtmlManifiestos(data.idPedido || pedidoEnEdicion || "")}</title>
-      <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f7fb; color: #222; }
-        .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
-        .toolbar button { padding:10px 14px; border:none; border-radius:8px; background:#198754; color:#fff; cursor:pointer; font-weight:600; }
-        .toolbar .secondary { background:#0d6efd; }
-        .header { background:#fff; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
-        @media print {
-          .toolbar { display:none !important; }
-          body { margin: 0; background: #fff; }
+    const response = await fetch(API_PDF_WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "unirManifiestosPedido",
+        key: API_KEY,
+        pedido_id: idPedido,
+        cliente: {
+          nombre: pedido.cliente || "N/A",
+          ciudad: pedido.ciudad || "N/A"
+        },
+        manifiestos: encontrados.map(item => ({
+          manifest_number: item.manifest_number,
+          file_name: item.file_name,
+          pdf_url: item.download_url || item.view_url || item.preview_url,
+          productos: item.productos || []
+        })),
+        warnings: {
+          items_sin_manifiesto: data.items_sin_manifiesto || [],
+          archivos_no_encontrados: data.archivos_no_encontrados || []
         }
-      </style>
-    </head>
-    <body>
-      <div class="toolbar">
-        <button onclick="window.print()">🖨 Imprimir esta vista</button>
-        <button class="secondary" onclick="window.close()">Cerrar</button>
-      </div>
-      <div class="header">
-        <h1 style="margin:0 0 8px 0; font-size:22px;">Manifiestos del pedido #${escaparHtmlManifiestos(data.idPedido || pedidoEnEdicion || "")}</h1>
-        <div>Se encontraron ${encontrados.length} manifiesto(s) disponible(s) para impresión.</div>
-        ${faltantesHtml}
-      </div>
-      ${bloques}
-    </body>
-    </html>
-  `);
-  win.document.close();
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 160)}`);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Manifiestos_Pedido_${idPedido}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    if (toastAdmin && toastAdmin.exito) {
+      toastAdmin.exito(`PDF consolidado generado para pedido #${idPedido}`);
+    }
+  } catch (error) {
+    console.error("Error unificando manifiestos:", error);
+    if (toastAdmin && toastAdmin.error) {
+      toastAdmin.error(error.message || "No se pudo generar el PDF consolidado de manifiestos");
+    }
+  }
 }
 
 function cerrarModalDetallePedido() {
@@ -685,11 +674,145 @@ function obtenerPedidoAdminPorId(idPedido) {
   ) || null;
 }
 
+function crearToastFallbackAdmin() {
+  const container = document.getElementById("toastContainer");
+  if (!container) return null;
+
+  const toastFallback = {
+    mostrar(mensaje, tipo = "info", duracion = 4000) {
+      const toastItem = document.createElement("div");
+      toastItem.className = `toast toast-${tipo}`;
+
+      const emojis = {
+        success: "✓",
+        error: "✕",
+        warning: "⚠",
+        info: "ℹ"
+      };
+
+      toastItem.innerHTML = `
+        <span>${emojis[tipo] || "ℹ"}</span>
+        <span>${mensaje}</span>
+      `;
+
+      container.appendChild(toastItem);
+
+      window.setTimeout(() => {
+        toastItem.style.animation = "slideOutDown 0.3s ease-out";
+        window.setTimeout(() => toastItem.remove(), 300);
+      }, duracion);
+    },
+    exito(mensaje) { this.mostrar(mensaje, "success", 3200); },
+    error(mensaje) { this.mostrar(mensaje, "error", 4500); },
+    advertencia(mensaje) { this.mostrar(mensaje, "warning", 4200); },
+    info(mensaje) { this.mostrar(mensaje, "info", 3500); }
+  };
+
+  window.toast = toastFallback;
+  return toastFallback;
+}
+
 function obtenerToastAdmin() {
   if (window.toast) return window.toast;
   if (window.parent && window.parent.toast) return window.parent.toast;
-  if (typeof toast !== "undefined") return toast;
-  return null;
+  if (typeof toast !== "undefined") {
+    window.toast = toast;
+    return toast;
+  }
+  return crearToastFallbackAdmin();
+}
+
+function obtenerClaveProductoManifiesto(item = {}) {
+  const referencia = String(item.referencia || "").trim();
+  const producto = String(item.producto || item.nombre || "").trim();
+  return [referencia, producto].filter(Boolean).join(" | ") || JSON.stringify(item);
+}
+
+function construirResumenToastManifiestos(data) {
+  const grupos = new Map();
+  const productosConManifiesto = new Set();
+  const productosSinManifiesto = new Set();
+
+  (data?.manifiestos || []).forEach(item => {
+    const numero = String(item.manifest_number || item.file_name || "Sin número").trim();
+    const productos = Array.isArray(item.productos) ? item.productos : [];
+
+    if (!grupos.has(numero)) {
+      grupos.set(numero, { numero, referencias: new Set(), productos: new Set() });
+    }
+
+    const grupo = grupos.get(numero);
+
+    productos.forEach(prod => {
+      productosConManifiesto.add(obtenerClaveProductoManifiesto(prod));
+
+      const referencia = String(prod.referencia || "").trim();
+      const nombre = String(prod.producto || prod.nombre || "Producto").trim();
+
+      if (referencia) grupo.referencias.add(referencia);
+      if (nombre) grupo.productos.add(nombre);
+    });
+  });
+
+  (data?.items_sin_manifiesto || []).forEach(item => {
+    productosSinManifiesto.add(obtenerClaveProductoManifiesto(item));
+  });
+
+  const totalReferencias = new Set([
+    ...productosConManifiesto,
+    ...productosSinManifiesto
+  ]).size;
+
+  const gruposOrdenados = Array.from(grupos.values())
+    .map(grupo => ({
+      numero: grupo.numero,
+      total: grupo.referencias.size || grupo.productos.size || 1
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return {
+    totalReferencias,
+    productosConManifiesto: productosConManifiesto.size,
+    productosSinManifiesto: productosSinManifiesto.size,
+    totalManifiestos: gruposOrdenados.length,
+    grupos: gruposOrdenados
+  };
+}
+
+function mostrarToastResumenManifiestos(data, idPedido) {
+  const toastAdmin = obtenerToastAdmin();
+  if (!toastAdmin) return;
+
+  const resumen = construirResumenToastManifiestos(data);
+  const detalleGrupos = resumen.grupos
+    .slice(0, 4)
+    .map(grupo => `• ${escaparHtmlManifiestos(grupo.numero)}: ${grupo.total} referencia(s)`)
+    .join("<br>");
+
+  const restante = resumen.grupos.length > 4
+    ? `<div style="margin-top: 2px;">y ${resumen.grupos.length - 4} manifiesto(s) más...</div>`
+    : "";
+
+  const mensaje = `
+    <div style="display:flex; flex-direction:column; gap:3px; line-height:1.35;">
+      <strong>Resumen de manifiestos · Pedido #${escaparHtmlManifiestos(idPedido)}</strong>
+      <span>Total referencias en el pedido: <strong>${resumen.totalReferencias}</strong></span>
+      <span>Productos con manifiesto: <strong>${resumen.productosConManifiesto}</strong></span>
+      <span>Productos sin manifiesto: <strong>${resumen.productosSinManifiesto}</strong></span>
+      <span>Manifiestos agrupados: <strong>${resumen.totalManifiestos}</strong></span>
+      ${detalleGrupos ? `<div style="margin-top:4px; font-size:12px;">${detalleGrupos}${restante}</div>` : ""}
+    </div>
+  `;
+
+  const tipo = resumen.productosSinManifiesto > 0 ? "warning" : "info";
+
+  if (typeof toastAdmin.mostrar === "function") {
+    toastAdmin.mostrar(mensaje, tipo, 7000);
+  } else if (tipo === "warning" && typeof toastAdmin.advertencia === "function") {
+    toastAdmin.advertencia(`Pedido #${idPedido}: ${resumen.productosConManifiesto} con manifiesto, ${resumen.productosSinManifiesto} sin manifiesto`);
+  } else if (typeof toastAdmin.info === "function") {
+    toastAdmin.info(`Pedido #${idPedido}: ${resumen.totalManifiestos} manifiesto(s) agrupado(s)`);
+  }
 }
 
 async function guardarCambioPedido(event) {

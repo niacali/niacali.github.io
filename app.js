@@ -246,6 +246,7 @@ class ToastNotificacion {
 }
 
 const toast = new ToastNotificacion();
+window.toast = toast;
 
 // ═══════════════════════════════════════════════════════════════════════
 // MODAL DE PRODUCTO EXPANDIDO
