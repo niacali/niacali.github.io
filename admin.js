@@ -539,6 +539,116 @@ async function cargarManifiestosPedido(idPedido) {
   }
 }
 
+// ── Overlay de progreso para generación de manifiestos ──────────────────────
+
+function mostrarOverlayProgresoManifiestos(idPedido) {
+  ocultarOverlayProgresoManifiestos(); // Evitar duplicados
+
+  const overlay = document.createElement("div");
+  overlay.id = "overlayProgresoManifiestos";
+  overlay.innerHTML = `
+    <div style="
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    ">
+      <div style="
+        background: #fff; border-radius: 16px; padding: 32px 28px;
+        max-width: 420px; width: 100%;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+        font-family: inherit;
+      ">
+        <!-- Encabezado -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+          <div id="opm-spinner" style="
+            width:36px; height:36px; border-radius:50%;
+            border:4px solid #e0e0e0; border-top-color:#c62828;
+            animation:opmSpin 0.9s linear infinite; flex-shrink:0;
+          "></div>
+          <div>
+            <div style="font-size:16px; font-weight:700; color:#212121;">
+              Generando PDF de Manifiestos
+            </div>
+            <div style="font-size:12px; color:#757575; margin-top:2px;">
+              Pedido <strong>#${idPedido}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pasos -->
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:24px;">
+          <div id="opm-paso1" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:10px; background:#e3f2fd;">
+            <span id="opm-icono1" style="font-size:18px;">⏳</span>
+            <span style="font-size:13px; color:#0d47a1; font-weight:600;">Buscando manifiestos en Drive…</span>
+          </div>
+          <div id="opm-paso2" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:10px; background:#f5f5f5;">
+            <span id="opm-icono2" style="font-size:18px;">⬜</span>
+            <span id="opm-texto2" style="font-size:13px; color:#9e9e9e; font-weight:500;">Enviando manifiestos a consolidar</span>
+          </div>
+          <div id="opm-paso3" style="display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:10px; background:#f5f5f5;">
+            <span id="opm-icono3" style="font-size:18px;">⬜</span>
+            <span id="opm-texto3" style="font-size:13px; color:#9e9e9e; font-weight:500;">Descargando PDF final</span>
+          </div>
+        </div>
+
+        <!-- Nota informativa -->
+        <div style="
+          font-size:11.5px; color:#757575; line-height:1.5;
+          padding:10px 12px; background:#fafafa; border-radius:8px;
+          border-left:3px solid #e0e0e0;
+        ">
+          ℹ️ El tiempo depende de la cantidad de manifiestos del pedido.<br>
+          <strong>Por favor no cierres esta ventana.</strong>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes opmSpin { to { transform: rotate(360deg); } }
+    </style>
+  `;
+  document.body.appendChild(overlay);
+}
+
+function actualizarOverlayProgresoManifiestos(paso, textoExtra) {
+  // paso: 1 = buscando, 2 = consolidando, 3 = descargando
+  const estiloActivo   = { bg: "#e3f2fd", color: "#0d47a1", icono: "⏳" };
+  const estiloListo    = { bg: "#e8f5e9", color: "#1b5e20", icono: "✅" };
+  const estiloEspera   = { bg: "#f5f5f5", color: "#9e9e9e", icono: "⬜" };
+
+  function aplicarEstilo(n, estado, texto) {
+    const pasoEl = document.getElementById(`opm-paso${n}`);
+    const icono = document.getElementById(`opm-icono${n}`);
+    const textoEl = document.getElementById(`opm-texto${n}`);
+    if (!pasoEl) return;
+    pasoEl.style.background = estado.bg;
+    if (icono) icono.textContent = estado.icono;
+    if (textoEl && texto) {
+      textoEl.style.color = estado.color;
+      textoEl.textContent = texto;
+    } else if (textoEl) {
+      textoEl.style.color = estado.color;
+    }
+  }
+
+  if (paso === 2) {
+    aplicarEstilo(1, estiloListo);
+    aplicarEstilo(2, estiloActivo, textoExtra || "Enviando manifiestos a consolidar…");
+    aplicarEstilo(3, estiloEspera);
+  } else if (paso === 3) {
+    aplicarEstilo(1, estiloListo);
+    aplicarEstilo(2, estiloListo);
+    aplicarEstilo(3, estiloActivo, "Descargando PDF final…");
+  }
+}
+
+function ocultarOverlayProgresoManifiestos() {
+  const el = document.getElementById("overlayProgresoManifiestos");
+  if (el) el.remove();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 async function generarPdfManifiestosPedido(index, event) {
   const pedido = pedidosAdmin[index];
   const toastAdmin = obtenerToastAdmin();
@@ -557,12 +667,15 @@ async function generarPdfManifiestosPedido(index, event) {
     boton.style.opacity = "0.7";
   }
 
+  const idPedido = pedido.id_pedido || pedido.pedido_id || pedido.id;
+  mostrarOverlayProgresoManifiestos(idPedido);
+
   try {
-    const idPedido = pedido.id_pedido || pedido.pedido_id || pedido.id;
     const data = await cargarManifiestosPedido(idPedido);
     await imprimirManifiestosActual(data, idPedido, pedido);
   } catch (error) {
     console.error("Error generando PDF de manifiestos:", error);
+    ocultarOverlayProgresoManifiestos();
     if (toastAdmin && toastAdmin.error) {
       toastAdmin.error(error.message || "No se pudo generar el PDF de manifiestos");
     }
@@ -583,6 +696,7 @@ async function imprimirManifiestosActual(dataParam = null, idPedidoParam = null,
   const pedido = pedidoParam || obtenerPedidoAdminPorId(idPedido) || {};
 
   if (!data || !Array.isArray(data.manifiestos)) {
+    ocultarOverlayProgresoManifiestos();
     if (toastAdmin && toastAdmin.info) {
       toastAdmin.info("No hay información de manifiestos para este pedido");
     }
@@ -591,6 +705,7 @@ async function imprimirManifiestosActual(dataParam = null, idPedidoParam = null,
 
   const encontrados = data.manifiestos.filter(item => item.found && (item.download_url || item.view_url || item.preview_url));
   if (encontrados.length === 0) {
+    ocultarOverlayProgresoManifiestos();
     if (toastAdmin && toastAdmin.error) {
       toastAdmin.error("No hay manifiestos disponibles para consolidar");
     }
@@ -598,9 +713,11 @@ async function imprimirManifiestosActual(dataParam = null, idPedidoParam = null,
   }
 
   try {
-    if (toastAdmin && toastAdmin.info) {
-      toastAdmin.info(`Generando PDF unificado de ${encontrados.length} manifiesto(s) agrupado(s)...`);
-    }
+    // Paso 2: enviando al worker de PDF
+    actualizarOverlayProgresoManifiestos(
+      2,
+      `Consolidando ${encontrados.length} manifiesto(s)… esto puede tardar unos segundos`
+    );
 
     const response = await fetch(API_PDF_WORKER_URL, {
       method: "POST",
@@ -631,6 +748,9 @@ async function imprimirManifiestosActual(dataParam = null, idPedidoParam = null,
       throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 160)}`);
     }
 
+    // Paso 3: descargando el PDF resultante
+    actualizarOverlayProgresoManifiestos(3);
+
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -641,10 +761,12 @@ async function imprimirManifiestosActual(dataParam = null, idPedidoParam = null,
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
+    ocultarOverlayProgresoManifiestos();
     if (toastAdmin && toastAdmin.exito) {
       toastAdmin.exito(`PDF consolidado generado para pedido #${idPedido}`);
     }
   } catch (error) {
+    ocultarOverlayProgresoManifiestos();
     console.error("Error unificando manifiestos:", error);
     if (toastAdmin && toastAdmin.error) {
       toastAdmin.error(error.message || "No se pudo generar el PDF consolidado de manifiestos");
