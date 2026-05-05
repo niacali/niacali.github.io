@@ -154,6 +154,9 @@ const CATEGORIA_ICONS_DEFAULT = {
   "belleza": "styler",
   "hogar": "home",
   "portatiles": "laptop",
+  "relojes": "watch",
+  "linternas": "flashlight_on",
+  "cargadores": "battery_charging_full",
   "sonido": "speaker",
   "soportes": "tripod",
   "temporada": "event",
@@ -167,7 +170,10 @@ const CATEGORIA_ICONS_DEFAULT = {
   "accesories": "headphones",
   "things": "category",
   "season": "event_note",
-  "other": "more_horiz"
+  "other": "more_horiz",
+  "watch": "watch",
+  "flashlight": "flashlight_on",
+  "charger": "battery_charging_full"
 };
 
 // Función para obtener el icono de una categoría
