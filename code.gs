@@ -612,6 +612,7 @@
     const idxSubtotal = headers.indexOf("subtotal");
     const idxTotalVenta = headers.indexOf("total_venta");
     const idxCostoVenta = headers.indexOf("costo_venta");
+    const idxNivelPrecio = headers.indexOf("nivel_precio"); // nivel elegido por el vendedor
 
     const productosSheet = ss.getSheetByName(SHEET_PRODUCTOS);
     const productosMap = {};
@@ -664,6 +665,7 @@
           precio1: productoInfo.precio1 || "",
           precio_unitario: row[idxPrecio],
           cantidad: row[idxCantidad],
+          nivel_precio: idxNivelPrecio >= 0 ? (Number(row[idxNivelPrecio]) || 1) : 1,
           subtotal: idxSubtotal >= 0 ? row[idxSubtotal] : "",
           total_venta: idxTotalVenta >= 0 ? row[idxTotalVenta] : "",
           costo_venta: idxCostoVenta >= 0 ? row[idxCostoVenta] : ""

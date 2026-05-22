@@ -1752,9 +1752,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
       <label for="exportPrecioSelector" style="display:block; margin-bottom:6px; font-size:13px; font-weight:600;">Precio a usar</label>
       <select id="exportPrecioSelector" style="width:100%; box-sizing:border-box; padding:10px 11px; border:1px solid #d9d9d9; border-radius:8px; margin-bottom:14px;">
-        <option value="precio1">Precio 1</option>
-        <option value="precio2">Precio 2</option>
-        <option value="precio3">Precio 3</option>
+        <option value="precio1">Precio 1 (Público)</option>
+        <option value="precio2">Precio 2 (Distribuidor)</option>
+        <option value="precio3">Precio 3 (Especial)</option>
+        <option value="precio_vendedor" style="font-weight:700; color:#1f7a47;">✓ Precio Vendedor (por producto)</option>
       </select>
 
       <label for="exportTipoInput" style="display:block; margin-bottom:6px; font-size:13px; font-weight:600;">Tipo (2 digitos)</label>
@@ -1807,7 +1808,12 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.setItem("adminExportTipo", tipo);
 
         const precioSeleccionado = String(selectPrecio.value || "precio1");
-        const etiquetas = { precio1: "Precio 1", precio2: "Precio 2", precio3: "Precio 3" };
+        const etiquetas = {
+          precio1: "Precio 1",
+          precio2: "Precio 2",
+          precio3: "Precio 3",
+          precio_vendedor: "Precio Vendedor"
+        };
         cerrar({
           factura,
           tipo,
@@ -1842,9 +1848,20 @@ document.addEventListener('DOMContentLoaded', function () {
       const precio1 = Number(item.precio1 ?? item.precio_unitario ?? item.precio ?? 0);
       const precio2 = Number(item.precio2 ?? 0);
       const precio3 = Number(item.precio3 ?? 0);
+
       let precioVenta = precio1;
-      if (precioSeleccionado === "precio2" && precio2 > 0) precioVenta = precio2;
-      else if (precioSeleccionado === "precio3" && precio3 > 0) precioVenta = precio3;
+
+      if (precioSeleccionado === "precio_vendedor") {
+        // Usar el nivel_precio guardado por ítem (lo elige el vendedor en el portal)
+        const nivelItem = Number(item.nivel_precio || 1);
+        if (nivelItem === 3 && precio3 > 0)      precioVenta = precio3;
+        else if (nivelItem === 2 && precio2 > 0) precioVenta = precio2;
+        else                                      precioVenta = precio1;
+      } else if (precioSeleccionado === "precio2" && precio2 > 0) {
+        precioVenta = precio2;
+      } else if (precioSeleccionado === "precio3" && precio3 > 0) {
+        precioVenta = precio3;
+      }
       const totalVentaItem = cantidad * precioVenta;
       // Costo por item: precio de venta menos 30%.
       const costoVentaItem = totalVentaItem * 0.70;
