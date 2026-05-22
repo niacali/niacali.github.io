@@ -29,6 +29,9 @@
 
     <div class="sidebar-footer">
       <p class="sidebar-version">v2.0 | 2026</p>
+      <a href="vendedor.html" class="sidebar-link sidebar-link--vendedor" title="Acceso exclusivo para vendedores">
+        <span class="material-symbols-outlined">storefront</span> Portal Vendedores
+      </a>
     </div>
   </nav>
 
@@ -144,5 +147,21 @@
   <!-- SCRIPTS -->
   <script src="app.js"></script>
   <script src="sidebar.js"></script>
+
+  <!-- Botón flotante de acceso a vendedores (discreto) -->
+  <a href="vendedor.html" id="btnAccesoVendedor" title="Portal Vendedores"
+    style="position:fixed;bottom:24px;left:24px;z-index:500;
+           display:flex;align-items:center;gap:8px;
+           background:rgba(30,30,50,0.82);color:#fff;
+           padding:9px 16px;border-radius:999px;
+           font-size:12px;font-weight:600;text-decoration:none;
+           backdrop-filter:blur(8px);
+           box-shadow:0 4px 16px rgba(0,0,0,0.25);
+           transition:opacity .2s,transform .2s;
+           opacity:0.55;"
+    onmouseenter="this.style.opacity='1';this.style.transform='scale(1.04)'"
+    onmouseleave="this.style.opacity='0.55';this.style.transform='scale(1)'">
+    <span style="font-size:15px">🏪</span> Vendedores
+  </a>
 </body>
 </html>

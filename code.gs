@@ -11,6 +11,7 @@
   const SHEET_CATEGORIAS = "categorias";
   const SHEET_PEDIDOS = "Pedidos";
   const SHEET_CONFIG = "Config";
+  const SHEET_VENDEDORES = "Vendedores";
   const CACHE_MINUTES = 10;
 
   /*********************************
@@ -42,6 +43,9 @@
         case "getProductos":
           return jsonOutput(getProductos(e.parameter));
 
+        case "getProductosVendedor":
+          return jsonOutput(getProductosVendedor(e.parameter));
+
         case "getProducto":
           return jsonOutput(getProducto(e.parameter.id));
 
@@ -56,6 +60,12 @@
 
         case "obtenerConfiguracion":
           return jsonOutput(obtenerConfiguracion());
+
+        case "loginVendedor":
+          return jsonOutput(loginVendedor(e.parameter.usuario, e.parameter.clave));
+
+        case "getPedidosVendedor":
+          return jsonOutput(getPedidosVendedor(e.parameter.token));
 
         default:
           throw "Acción GET no válida: " + action;
@@ -121,34 +131,56 @@
       if (!data.cliente) {
         throw new Error("Acción no reconocida o datos de cliente faltantes");
       }
+
+      // Validar token de vendedor si viene en el payload
+      let vendedorUsuario = data.vendedor || "";
+      let nivelPrecioPermitido = data.nivel_precio || 1;
+      if (data.vendedor_token) {
+        const verif = verificarTokenVendedor(data.vendedor_token);
+        if (verif.ok) {
+          vendedorUsuario = verif.usuario;
+          nivelPrecioPermitido = verif.nivel_precio;
+        }
+      }
       
       const resultado = crearPedido({
         cliente: data.cliente,
         ciudad: data.cliente.ciudad,
         items: data.items,
-        total: data.total
+        total: data.total,
+        vendedor: vendedorUsuario,
+        nivel_precio: nivelPrecioPermitido
       });
 
-      // Guardar detalle
+      // Guardar detalle con nivel_precio auditado
       const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
       const detalleSheet = ss.getSheetByName("pedido_detalle");
       if (detalleSheet) {
+        // Detectar si existe columna nivel_precio en detalle
+        const detalleHeaders = detalleSheet.getLastRow() >= 1
+          ? detalleSheet.getRange(1, 1, 1, detalleSheet.getLastColumn()).getValues()[0].map(h => String(h).toLowerCase().trim())
+          : [];
+        const tieneNivelPrecio = detalleHeaders.indexOf("nivel_precio") >= 0;
+
         let detalleLastRow = detalleSheet.getLastRow();
         let nextDetalleId = detalleLastRow;
         data.items.forEach((item) => {
           nextDetalleId++;
-          const total_venta = Number(item.precio) * Number(item.cantidad);
+          const precioUsado = Number(item.precio) || 0;
+          const total_venta = precioUsado * Number(item.cantidad);
           const costo_venta = Math.round(total_venta * 0.7 * 100) / 100;
-          detalleSheet.appendRow([
+          const fila = [
             nextDetalleId,
             resultado.pedido_id,
             item.id || "",
             item.nombre,
             item.cantidad,
-            item.precio,
+            precioUsado,
             total_venta,
             costo_venta
-          ]);
+          ];
+          if (tieneNivelPrecio) fila.push(Number(item.nivel_precio || nivelPrecioPermitido));
+          detalleSheet.appendRow(fila);
         });
       }
 
@@ -425,10 +457,15 @@
     const data = sheet.getDataRange().getValues();
     const headers = data.shift();
 
+    const idxPrecio2 = headers.indexOf("precio2");
+    const idxPrecio3 = headers.indexOf("precio3");
+
     return data.map(r => ({
       id: r[headers.indexOf("id")],
       nombre: r[headers.indexOf("nombre")],
       precio: r[headers.indexOf("precio")],
+      precio2: idxPrecio2 >= 0 ? (r[idxPrecio2] || "") : "",
+      precio3: idxPrecio3 >= 0 ? (r[idxPrecio3] || "") : "",
       categoria: r[headers.indexOf("categoria")],
       imagen: convertirDriveUrl(r[headers.indexOf("Url_Imagen_Drive")]),
       descripcion: r[headers.indexOf("descripcion")],
@@ -445,36 +482,38 @@
     const data = sheet.getDataRange().getValues();
     const headers = data.shift();
 
-    const idxEstado = headers.indexOf("estado");
+    const idxEstado    = headers.indexOf("estado");
     const idxCategoria = headers.indexOf("categoria");
-    const idxId = headers.indexOf("id");
-    const idxNombre = headers.indexOf("nombre");
-    const idxPrecio = headers.indexOf("precio");
-    const idxImagen = headers.indexOf("Url_Imagen_Drive");
+    const idxId        = headers.indexOf("id");
+    const idxNombre    = headers.indexOf("nombre");
+    const idxPrecio    = headers.indexOf("precio");
+    const idxImagen    = headers.indexOf("Url_Imagen_Drive");
     const idxReferencia = headers.indexOf("referencia");
-    const idxEsNuevo = headers.indexOf("es_nuevo");
+    const idxEsNuevo   = headers.indexOf("es_nuevo");
     const idxNuevoHasta = headers.indexOf("nuevo_hasta");
+    const idxPrecio2   = headers.indexOf("precio2");
+    const idxPrecio3   = headers.indexOf("precio3");
 
     const catParam = String(categoria || "").toLowerCase().trim();
 
-    const items = data
+    return data
       .filter(r => {
         const estado = String(r[idxEstado] || "").toLowerCase().trim();
-        const cat = String(r[idxCategoria] || "").toLowerCase().trim();
+        const cat    = String(r[idxCategoria] || "").toLowerCase().trim();
         return estado === "disponible" && (!catParam || cat === catParam);
       })
       .map(r => ({
-        id: r[idxId],
-        nombre: r[idxNombre],
-        precio: r[idxPrecio],
-        categoria: r[idxCategoria],
-        referencia: r[idxReferencia],
-        imagen: convertirDriveUrl(r[idxImagen]),
-        es_nuevo: idxEsNuevo >= 0 ? (String(r[idxEsNuevo] || "").toLowerCase() === "true") : false,
+        id:          r[idxId],
+        nombre:      r[idxNombre],
+        precio:      r[idxPrecio],
+        precio2:     idxPrecio2 >= 0 ? (r[idxPrecio2] || "") : "",
+        precio3:     idxPrecio3 >= 0 ? (r[idxPrecio3] || "") : "",
+        categoria:   r[idxCategoria],
+        referencia:  r[idxReferencia],
+        imagen:      convertirDriveUrl(r[idxImagen]),
+        es_nuevo:    idxEsNuevo >= 0 ? (String(r[idxEsNuevo] || "").toLowerCase() === "true") : false,
         nuevo_hasta: idxNuevoHasta >= 0 && r[idxNuevoHasta] ? String(r[idxNuevoHasta]).substring(0, 10) : ""
       }));
-
-    return items;
   }
 
   function getProducto(id) {
@@ -1484,24 +1523,30 @@
       if (!sheet) {
         throw new Error("Hoja Pedidos no encontrada");
       }
+
+      // Detectar columnas dinámicamente para compatibilidad
+      const headerRow = sheet.getLastRow() >= 1
+        ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).toLowerCase().trim())
+        : ["id_pedido", "fecha", "cliente", "ciudad", "total", "estado"];
+      const tieneVendedor    = headerRow.indexOf("vendedor") >= 0;
+      const tieneNivelPrecio = headerRow.indexOf("nivel_precio") >= 0;
       
       const idPedido = generarIdPedido();
-      const fecha = new Date();
-      const cliente = pedido.cliente.nombre || "";
-      const ciudad = pedido.cliente.ciudad || pedido.ciudad || "";
-      const total = pedido.total || 0;
-      const estado = "pendiente";
+      const fecha    = new Date();
+      const cliente  = pedido.cliente.nombre || "";
+      const ciudad   = pedido.cliente.ciudad || pedido.ciudad || "";
+      const total    = pedido.total || 0;
+      const estado   = "pendiente";
+      const vendedor = pedido.vendedor || "";
+      const nivelPrecio = Number(pedido.nivel_precio || 1);
       
-      sheet.appendRow([
-        idPedido,
-        fecha,
-        cliente,
-        ciudad,
-        total,
-        estado
-      ]);
+      const fila = [idPedido, fecha, cliente, ciudad, total, estado];
+      if (tieneVendedor)    fila.push(vendedor);
+      if (tieneNivelPrecio) fila.push(nivelPrecio);
+
+      sheet.appendRow(fila);
       
-      Logger.log(`✅ Pedido creado: #${idPedido}`);
+      Logger.log(`✅ Pedido creado: #${idPedido}${vendedor ? " por " + vendedor : ""}`);
       
       return {
         ok: true,
@@ -1653,6 +1698,205 @@
     }
   }
 
+  /*********************************
+  * MÓDULO DE VENDEDORES
+  *********************************/
+
+  /**
+   * Login de vendedor. Retorna token de sesión + nivel_precio permitido.
+   * Columnas esperadas en hoja Vendedores: usuario | clave | nombre | nivel_precio | activo
+   */
+  function loginVendedor(usuario, clave) {
+    try {
+      if (!usuario || !clave) {
+        return { ok: false, error: "Usuario y clave requeridos" };
+      }
+
+      const ss = getSpreadsheet();
+      const sheet = ss.getSheetByName(SHEET_VENDEDORES);
+
+      if (!sheet) {
+        return { ok: false, error: "Módulo de vendedores no configurado. Crea la hoja 'Vendedores' en el Spreadsheet." };
+      }
+
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 2) {
+        return { ok: false, error: "No hay vendedores registrados" };
+      }
+
+      const headers = data[0].map(h => String(h).toLowerCase().trim());
+      const idxUsuario     = headers.indexOf("usuario");
+      const idxClave       = headers.indexOf("clave");
+      const idxNombre      = headers.indexOf("nombre");
+      const idxNivelPrecio = headers.indexOf("nivel_precio");
+      const idxActivo      = headers.indexOf("activo");
+
+      if (idxUsuario === -1 || idxClave === -1) {
+        return { ok: false, error: "Hoja Vendedores sin columnas requeridas (usuario, clave)" };
+      }
+
+      const usuarioNorm = String(usuario).toLowerCase().trim();
+      const claveNorm   = String(clave).trim();
+
+      const fila = data.slice(1).find(r => {
+        const activo = idxActivo >= 0 ? String(r[idxActivo]).toLowerCase().trim() : "true";
+        return (
+          String(r[idxUsuario]).toLowerCase().trim() === usuarioNorm &&
+          String(r[idxClave]).trim() === claveNorm &&
+          (activo === "true" || activo === "1" || activo === "si" || activo === "sí")
+        );
+      });
+
+      if (!fila) {
+        return { ok: false, error: "Credenciales inválidas o usuario inactivo" };
+      }
+
+      const nombre      = idxNombre >= 0 ? String(fila[idxNombre]).trim() : usuario;
+      const nivelPrecio = idxNivelPrecio >= 0 ? Number(fila[idxNivelPrecio] || 1) : 1;
+
+      // Token simple: base64(usuario:timestamp) — suficiente para uso interno sin OAuth
+      const timestamp = new Date().getTime();
+      const token = Utilities.base64Encode(`${usuarioNorm}:${timestamp}:${API_KEY}`);
+
+      // Guardar token en hoja Config para validación posterior
+      const configSheet = ss.getSheetByName(SHEET_CONFIG);
+      if (configSheet) {
+        const claveToken = `vendedor_token_${usuarioNorm}`;
+        const expira = timestamp + (8 * 60 * 60 * 1000); // 8 horas
+        const configData = configSheet.getDataRange().getValues();
+        let filaToken = -1;
+        for (let i = 0; i < configData.length; i++) {
+          if (String(configData[i][0]).toLowerCase().trim() === claveToken) {
+            filaToken = i + 1;
+            break;
+          }
+        }
+        const valorToken = JSON.stringify({ token, expira, usuario: usuarioNorm, nivel_precio: nivelPrecio });
+        if (filaToken > 0) {
+          configSheet.getRange(filaToken, 2).setValue(valorToken);
+        } else {
+          configSheet.appendRow([claveToken, valorToken]);
+        }
+      }
+
+      Logger.log(`✅ Vendedor autenticado: ${nombre} (nivel ${nivelPrecio})`);
+      return {
+        ok: true,
+        nombre,
+        usuario: usuarioNorm,
+        nivel_precio: nivelPrecio,
+        token
+      };
+    } catch (error) {
+      Logger.log("❌ Error en loginVendedor: " + error.toString());
+      return { ok: false, error: error.toString() };
+    }
+  }
+
+  /**
+   * Verifica que un token de vendedor sea válido y no haya expirado.
+   * Retorna { ok, usuario, nivel_precio } o { ok: false, error }
+   */
+  function verificarTokenVendedor(token) {
+    try {
+      if (!token) return { ok: false, error: "Token requerido" };
+
+      const ss = getSpreadsheet();
+      const configSheet = ss.getSheetByName(SHEET_CONFIG);
+      if (!configSheet) return { ok: false, error: "Configuración no disponible" };
+
+      const configData = configSheet.getDataRange().getValues();
+      const ahora = new Date().getTime();
+
+      for (let i = 0; i < configData.length; i++) {
+        const clave = String(configData[i][0]).toLowerCase().trim();
+        if (!clave.startsWith("vendedor_token_")) continue;
+
+        let registro = null;
+        try { registro = JSON.parse(String(configData[i][1])); } catch (e) { continue; }
+
+        if (!registro || registro.token !== token) continue;
+        if (ahora > Number(registro.expira)) {
+          return { ok: false, error: "Sesión expirada. Por favor inicia sesión nuevamente." };
+        }
+
+        return { ok: true, usuario: registro.usuario, nivel_precio: registro.nivel_precio };
+      }
+
+      return { ok: false, error: "Token inválido" };
+    } catch (error) {
+      Logger.log("❌ Error en verificarTokenVendedor: " + error.toString());
+      return { ok: false, error: error.toString() };
+    }
+  }
+
+  /**
+   * Retorna productos disponibles incluyendo precio2 y precio3.
+   * Requiere token de vendedor válido.
+   */
+  function getProductosVendedor(params) {
+    try {
+      const token = params && params.token;
+      const verificacion = verificarTokenVendedor(token);
+      if (!verificacion.ok) return { ok: false, error: verificacion.error, items: [] };
+
+      // Reutilizar cargarProductosPorCategoria con flag de multiprecios
+      const paramsConFlag = Object.assign({}, params, { incluirMultiprecios: true });
+      const resultado = getProductos(paramsConFlag);
+
+      return {
+        ok: true,
+        nivel_precio: verificacion.nivel_precio,
+        usuario: verificacion.usuario,
+        total: resultado.total,
+        items: resultado.items
+      };
+    } catch (error) {
+      Logger.log("❌ Error en getProductosVendedor: " + error.toString());
+      return { ok: false, error: error.toString(), items: [] };
+    }
+  }
+
+  /**
+   * Retorna pedidos creados por un vendedor específico.
+   * Requiere token válido.
+   */
+  function getPedidosVendedor(token) {
+    try {
+      const verificacion = verificarTokenVendedor(token);
+      if (!verificacion.ok) return { ok: false, error: verificacion.error, items: [] };
+
+      const ss = getSpreadsheet();
+      const sheet = ss.getSheetByName(SHEET_PEDIDOS);
+      if (!sheet) return { ok: false, error: "Hoja Pedidos no encontrada", items: [] };
+
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 2) return { ok: true, items: [] };
+
+      const headers = data[0].map(h => String(h).toLowerCase().trim());
+      const idxVendedor = headers.indexOf("vendedor");
+
+      // Si no existe columna vendedor, retornar todos (compatibilidad)
+      const todos = getPedidos();
+      if (idxVendedor === -1) {
+        return { ok: true, items: todos, warning: "Columna 'vendedor' no encontrada en hoja Pedidos" };
+      }
+
+      const filtrados = todos.filter((p, i) => {
+        const vendedorFila = String(data[i + 1][idxVendedor] || "").toLowerCase().trim();
+        return vendedorFila === verificacion.usuario;
+      });
+
+      return { ok: true, items: filtrados };
+    } catch (error) {
+      Logger.log("❌ Error en getPedidosVendedor: " + error.toString());
+      return { ok: false, error: error.toString(), items: [] };
+    }
+  }
+
+  /*********************************
+  * GENERAR URLs DE IMÁGENES (original)
+  *********************************/
   function generarUrlsImagenes() {
     try {
       const ss = getSpreadsheet();
