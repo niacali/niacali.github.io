@@ -6,7 +6,7 @@
 // CONFIGURACIÓN GLOBAL PARA ADMIN
 // ═══════════════════════════════════════════════════════════════════════
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxwZ6gue1j9i93KSYZ_8b7oijrdCXHnpM9DE7QNE0DA79fQorXyheQwf0KEaKIYwAY/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzuDvHRMjkPYfHEI0U1LDoVgxPEpq2pvIleJKNznSMdofXfp9ItT2ryAfLX0zXrjj8J/exec";
 const API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const API_PDF_WORKER_URL = "https://pedido-pdf.pedidosnia-cali.workers.dev";
 const API_KEY = "TIENDA_API_2026";
@@ -1854,9 +1854,9 @@ document.addEventListener('DOMContentLoaded', function () {
       if (precioSeleccionado === "precio_vendedor") {
         // Usar el nivel_precio guardado por ítem (lo elige el vendedor en el portal)
         const nivelItem = Number(item.nivel_precio || 1);
-        if (nivelItem === 3 && precio3 > 0)      precioVenta = precio3;
+        if (nivelItem === 3 && precio3 > 0) precioVenta = precio3;
         else if (nivelItem === 2 && precio2 > 0) precioVenta = precio2;
-        else                                      precioVenta = precio1;
+        else precioVenta = precio1;
       } else if (precioSeleccionado === "precio2" && precio2 > 0) {
         precioVenta = precio2;
       } else if (precioSeleccionado === "precio3" && precio3 > 0) {

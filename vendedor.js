@@ -3,7 +3,7 @@
    Se carga DESPUÉS de app.js. No reemplaza el catálogo, solo lo enriquece.
    ═══════════════════════════════════════════════════════════════════════ */
 
-const V_API_URL = "https://script.google.com/macros/s/AKfycbxwZ6gue1j9i93KSYZ_8b7oijrdCXHnpM9DE7QNE0DA79fQorXyheQwf0KEaKIYwAY/exec";
+const V_API_URL = "https://script.google.com/macros/s/AKfycbzuDvHRMjkPYfHEI0U1LDoVgxPEpq2pvIleJKNznSMdofXfp9ItT2ryAfLX0zXrjj8J/exec";
 const V_API_PROXY = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const V_API_KEY = "TIENDA_API_2026";
 const V_SESION_KEY = "vendedor_sesion_v1";
@@ -268,7 +268,7 @@ function vAgregarChipsACard(card, prod, idStr) {
     btnPedido.innerHTML = "📋&nbsp;Agregar al pedido";
     btnPedido.style.display = "flex"; // visible siempre en modo vendedor
 
-    btnPedido.addEventListener("click", function(e) {
+    btnPedido.addEventListener("click", function (e) {
       e.stopPropagation();
       e.preventDefault();
 
@@ -297,7 +297,7 @@ function vAgregarChipsACard(card, prod, idStr) {
   if (btnCompact && !btnCompact._vHooked) {
     btnCompact._vHooked = true;
     const originalOnclick = btnCompact.onclick;
-    btnCompact.onclick = function(e) {
+    btnCompact.onclick = function (e) {
       if (!vSesion) {
         if (originalOnclick) originalOnclick.call(this, e);
         return;
