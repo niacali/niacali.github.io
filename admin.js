@@ -1852,11 +1852,12 @@ document.addEventListener('DOMContentLoaded', function () {
       let precioVenta = precio1;
 
       if (precioSeleccionado === "precio_vendedor") {
-        // Usar el nivel_precio guardado por ítem (lo elige el vendedor en el portal)
-        const nivelItem = Number(item.nivel_precio || 1);
-        if (nivelItem === 3 && precio3 > 0) precioVenta = precio3;
-        else if (nivelItem === 2 && precio2 > 0) precioVenta = precio2;
-        else precioVenta = precio1;
+        // precio_unitario ES el precio real que usó el vendedor (P1/P2/P3).
+        // vendedor.js lo calcula con vObtenerPrecio() antes de enviarlo,
+        // y code.gs lo persiste en pedido_detalle.precio_unitario.
+        // Usarlo directamente es más confiable que reconstruir desde nivel_precio.
+        const precioReal = Number(item.precio_unitario ?? item.precio ?? 0);
+        precioVenta = precioReal > 0 ? precioReal : precio1;
       } else if (precioSeleccionado === "precio2" && precio2 > 0) {
         precioVenta = precio2;
       } else if (precioSeleccionado === "precio3" && precio3 > 0) {
