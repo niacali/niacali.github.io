@@ -257,42 +257,7 @@ function vAgregarChipsACard(card, prod, idStr) {
     else card.appendChild(wrap);
   }
 
-  // ── BOTÓN DEDICADO "Agregar al pedido" ────────────────────────────────
-  // Más confiable que interceptar el onclick de app.js.
-  // Se inserta en la zona .action-row de la card, visible solo para el vendedor.
-  const actionRow = card.querySelector(".action-row");
-  if (actionRow && !actionRow.querySelector(".v-btn-agregar-pedido")) {
-    const btnPedido = document.createElement("button");
-    btnPedido.type = "button";
-    btnPedido.className = "v-btn-agregar-pedido";
-    btnPedido.innerHTML = "📋&nbsp;Agregar al pedido";
-    btnPedido.style.display = "flex"; // visible siempre en modo vendedor
-
-    btnPedido.addEventListener("click", function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-
-      // Leer prod fresco desde _productosCache en el momento del click
-      const prodFresh = (typeof _productosCache !== "undefined")
-        ? (_productosCache[Number(idStr)] || _productosCache[idStr] || null)
-        : null;
-
-      if (!prodFresh) {
-        vToast.error("Producto no encontrado en cache");
-        return;
-      }
-
-      const qtyInput = card.querySelector(`[id^="qty-"]`);
-      const cantidad = qtyInput ? Math.max(1, Number(qtyInput.value) || 1) : 1;
-
-      vAgregarAlCarritoVendedor(idStr, prodFresh, cantidad);
-    });
-
-    // Insertar al final de action-row (bajo el botón 🛒 público)
-    actionRow.appendChild(btnPedido);
-  }
-
-  // ── TAMBIÉN reemplazar el onclick del 🛒 original ─────────────────────
+  // ── Reemplazar el onclick del 🛒 original ─────────────────────────────
   const btnCompact = card.querySelector(".btn-compact");
   if (btnCompact && !btnCompact._vHooked) {
     btnCompact._vHooked = true;

@@ -221,18 +221,7 @@
     .v-toast--out     { animation: vSlideOut .35s ease forwards; }
     @keyframes vSlideIn  { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
     @keyframes vSlideOut { from{transform:translateY(0);opacity:1}   to{transform:translateY(20px);opacity:0} }
-    /* ── Botón Agregar al Pedido (solo en modo vendedor) ── */
-    .v-btn-agregar-pedido {
-      display: none; /* se activa via JS en modo vendedor */
-      width: 100%; margin-top: 8px; padding: 9px;
-      background: #1a1a2e; color: #fff;
-      border: none; border-radius: 8px;
-      font-size: 13px; font-weight: 700;
-      cursor: pointer; transition: background .2s;
-      align-items: center; justify-content: center; gap: 6px;
-    }
-    .v-btn-agregar-pedido:hover { background: #2d2d4e; }
-    .vendedor-activo .v-btn-agregar-pedido { display: flex; }
+  
   </style>
 </head>
 <body>
