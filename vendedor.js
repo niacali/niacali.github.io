@@ -7,6 +7,7 @@ const V_API_URL = "https://script.google.com/macros/s/AKfycbzuDvHRMjkPYfHEI0U1LD
 const V_API_PROXY = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const V_API_KEY = "TIENDA_API_2026";
 const V_SESION_KEY = "vendedor_sesion_v1";
+const V_CARRITO_KEY = "vendedor_carrito_v1";
 
 /* ─── Estado del vendedor ────────────────────────────────────────────── */
 let vSesion = null;   // { nombre, usuario, nivel_precio, token }
@@ -48,8 +49,13 @@ function vCargarSesion() {
     if (!raw) return false;
     vSesion = JSON.parse(raw);
     vNivelDefault = vSesion.nivel_precio;
+    vCarrito = JSON.parse(sessionStorage.getItem(V_CARRITO_KEY) || "[]");
     return true;
   } catch { return false; }
+}
+
+function vGuardarCarrito() {
+  sessionStorage.setItem(V_CARRITO_KEY, JSON.stringify(vCarrito));
 }
 
 function cerrarSesionVendedor() {
@@ -57,6 +63,7 @@ function cerrarSesionVendedor() {
   vCarrito = [];
   vPreciosPorProducto = {};
   sessionStorage.removeItem(V_SESION_KEY);
+  sessionStorage.removeItem(V_CARRITO_KEY);
   vDesinstalarHookCarrito(); // Restaurar agregarAlCarrito original
   vOcultarBarraVendedor();
   vRetirarChips();
@@ -114,6 +121,7 @@ function vActivarModoVendedor() {
   if (!vSesion) return;
   vMostrarBarraVendedor();
   vInstalarHookCarrito(); // Sobrescribir agregarAlCarrito de app.js
+  vActualizarBadgeCarrito(); // Restaurar badge con items del carrito persistido
   // app.js puede tardar en renderizar; esperamos un ciclo
   setTimeout(vInyectarChipsEnGrid, 200);
 }
@@ -411,6 +419,7 @@ function vAgregarAlCarritoVendedor(idStr, prod, cantidad) {
     vToast.ok(`✓ ${nombre} — ${vEtiquetaNivel(nivelProducto)} ($${precio.toLocaleString("es-CO")})`);
   }
 
+  vGuardarCarrito();
   vActualizarBadgeCarrito();
 }
 
@@ -470,6 +479,7 @@ function vCambiarQtyCarrito(idx, delta) {
   if (!vCarrito[idx]) return;
   vCarrito[idx].cantidad += delta;
   if (vCarrito[idx].cantidad <= 0) vCarrito.splice(idx, 1);
+  vGuardarCarrito();
   vRenderCarritoVendedor();
   vActualizarBadgeCarrito();
 }
@@ -477,6 +487,7 @@ function vCambiarQtyCarrito(idx, delta) {
 function vEliminarDelCarrito(idx) {
   const nombre = vCarrito[idx]?.nombre || "";
   vCarrito.splice(idx, 1);
+  vGuardarCarrito();
   vRenderCarritoVendedor();
   vActualizarBadgeCarrito();
   vToast.info(`${nombre} eliminado`);
@@ -486,6 +497,7 @@ function vaciarCarritoVendedor() {
   if (!vCarrito.length) return;
   if (!confirm("¿Vaciar el carrito de venta?")) return;
   vCarrito = [];
+  vGuardarCarrito();
   vRenderCarritoVendedor();
   vActualizarBadgeCarrito();
 }
@@ -551,6 +563,7 @@ async function vFinalizarPedido(e) {
     vToast.ok(`✓ Pedido #${pedidoId} creado`);
 
     vCarrito = [];
+    vGuardarCarrito();
     vRenderCarritoVendedor();
     vActualizarBadgeCarrito();
     document.getElementById("vFormCliente").reset();
