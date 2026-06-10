@@ -3,7 +3,7 @@
    Se carga DESPUÉS de app.js. No reemplaza el catálogo, solo lo enriquece.
    ═══════════════════════════════════════════════════════════════════════ */
 
-const V_API_URL = "https://script.google.com/macros/s/AKfycbzuDvHRMjkPYfHEI0U1LDoVgxPEpq2pvIleJKNznSMdofXfp9ItT2ryAfLX0zXrjj8J/exec";
+const V_API_URL = "https://script.google.com/macros/s/AKfycbxLuEaJBoQV7VHBoOnoWniFa3eVhuZhFix2anUYATw2b0CrQ4ofPAjWGBF3HltPTbbO/exec";
 const V_API_PROXY = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const V_API_KEY = "TIENDA_API_2026";
 const V_SESION_KEY = "vendedor_sesion_v1";
