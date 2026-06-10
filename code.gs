@@ -563,6 +563,9 @@
     const idxFecha = findColumnIndex("fecha");
     const idxCliente = findColumnIndex("cliente");
     const idxCiudad = findColumnIndex("ciudad");
+    const idxTelefono = findColumnIndex("telefono");
+    const idxNotas = findColumnIndex("notas");
+    const idxObservaciones = findColumnIndex("observaciones");
     const idxItems = findColumnIndex("items");
     const idxTotal = findColumnIndex("total");
     const idxEstado = findColumnIndex("estado");
@@ -585,6 +588,9 @@
         fecha: idxFecha >= 0 ? row[idxFecha] : "",
         cliente: idxCliente >= 0 ? row[idxCliente] : "",
         ciudad: idxCiudad >= 0 ? row[idxCiudad] : "",
+        telefono: idxTelefono >= 0 ? row[idxTelefono] : "",
+        notas: idxNotas >= 0 ? row[idxNotas] : (idxObservaciones >= 0 ? row[idxObservaciones] : ""),
+        observaciones: idxObservaciones >= 0 ? row[idxObservaciones] : (idxNotas >= 0 ? row[idxNotas] : ""),
         items: idxItems >= 0 ? parseJSON(row[idxItems]) : [],
         total: idxTotal >= 0 ? row[idxTotal] : 0,
         estado: idxEstado >= 0 ? (row[idxEstado] || "nuevo") : "nuevo"
@@ -1526,27 +1532,56 @@
         throw new Error("Hoja Pedidos no encontrada");
       }
 
-      // Detectar columnas dinámicamente para compatibilidad
-      const headerRow = sheet.getLastRow() >= 1
-        ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).toLowerCase().trim())
-        : ["id_pedido", "fecha", "cliente", "ciudad", "total", "estado"];
-      const tieneVendedor    = headerRow.indexOf("vendedor") >= 0;
-      const tieneNivelPrecio = headerRow.indexOf("nivel_precio") >= 0;
-      
       const idPedido = generarIdPedido();
       const fecha    = new Date();
-      const cliente  = pedido.cliente.nombre || "";
-      const ciudad   = pedido.cliente.ciudad || pedido.ciudad || "";
+      const clienteObj = pedido.cliente || {};
+      const cliente  = clienteObj.nombre || "";
+      const ciudad   = clienteObj.ciudad || pedido.ciudad || "";
+      const telefono = clienteObj.telefono || "";
+      const notas    = clienteObj.notas || "";
+      const direccion = clienteObj.direccion || "";
       const total    = pedido.total || 0;
       const estado   = "pendiente";
       const vendedor = pedido.vendedor || "";
       const nivelPrecio = Number(pedido.nivel_precio || 1);
-      
-      const fila = [idPedido, fecha, cliente, ciudad, total, estado];
-      if (tieneVendedor)    fila.push(vendedor);
-      if (tieneNivelPrecio) fila.push(nivelPrecio);
 
-      sheet.appendRow(fila);
+      // Mapear por nombre de columna para evitar desalineación cuando la hoja tiene columnas extra.
+      const lastCol = sheet.getLastColumn();
+      const headers = lastCol > 0
+        ? sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).toLowerCase().trim())
+        : [];
+
+      if (headers.length) {
+        const fila = new Array(headers.length).fill("");
+        const setCampo = (nombres, valor) => {
+          const candidatos = Array.isArray(nombres) ? nombres : [nombres];
+          for (let i = 0; i < candidatos.length; i++) {
+            const idx = headers.indexOf(String(candidatos[i]).toLowerCase().trim());
+            if (idx >= 0) {
+              fila[idx] = valor;
+              return true;
+            }
+          }
+          return false;
+        };
+
+        setCampo(["id_pedido", "pedido_id", "id"], idPedido);
+        setCampo("fecha", fecha);
+        setCampo("cliente", cliente);
+        setCampo("ciudad", ciudad);
+        setCampo("telefono", telefono);
+        setCampo(["notas", "observaciones"], notas);
+        setCampo(["direccion", "dirección"], direccion);
+        setCampo("total", total);
+        setCampo("estado", estado);
+        setCampo("vendedor", vendedor);
+        setCampo("nivel_precio", nivelPrecio);
+
+        sheet.appendRow(fila);
+      } else {
+        // Fallback para hojas antiguas sin encabezados detectables.
+        sheet.appendRow([idPedido, fecha, cliente, ciudad, total, estado, vendedor, nivelPrecio]);
+      }
       
       Logger.log(`✅ Pedido creado: #${idPedido}${vendedor ? " por " + vendedor : ""}`);
       

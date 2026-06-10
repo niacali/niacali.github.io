@@ -41,6 +41,20 @@
       transition: border-color .2s;
     }
     .v-form-group input:focus { outline: none; border-color: #c62828; }
+    .v-show-pass {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #4b5563;
+      cursor: pointer;
+      user-select: none;
+    }
+    .v-show-pass input {
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
     .v-btn-login {
       width: 100%; padding: 14px; background: #c62828; color: #fff;
       border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
@@ -242,6 +256,10 @@
       <div class="v-form-group">
         <label for="vClave">Contraseña</label>
         <input id="vClave" type="password" placeholder="••••••••" autocomplete="current-password" required>
+        <label class="v-show-pass" for="vMostrarClave" style="margin-top:8px;">
+          <input id="vMostrarClave" type="checkbox">
+          Mostrar contraseña
+        </label>
       </div>
       <button id="vBtnLogin" type="submit" class="v-btn-login">Ingresar al portal</button>
     </form>

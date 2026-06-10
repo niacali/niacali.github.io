@@ -3,7 +3,7 @@
    Se carga DESPUÉS de app.js. No reemplaza el catálogo, solo lo enriquece.
    ═══════════════════════════════════════════════════════════════════════ */
 
-const V_API_URL = "https://script.google.com/macros/s/AKfycbxLuEaJBoQV7VHBoOnoWniFa3eVhuZhFix2anUYATw2b0CrQ4ofPAjWGBF3HltPTbbO/exec";
+const V_API_URL = "https://script.google.com/macros/s/AKfycbyiWFmktbcbD8qjosEULA13rpJPr9AkuAK7ZYkB8PzoMWMQcSFUFSqrg7pJkELoXxSy/exec";
 const V_API_PROXY = "https://pedido-proxy.pedidosnia-cali.workers.dev";
 const V_API_KEY = "TIENDA_API_2026";
 const V_SESION_KEY = "vendedor_sesion_v1";
@@ -109,11 +109,25 @@ function mostrarLoginVendedor() {
   if (el) el.style.display = "flex";
   const btn = document.getElementById("vBtnLogin");
   if (btn) { btn.disabled = false; btn.textContent = "Ingresar al portal"; }
+  const claveInput = document.getElementById("vClave");
+  const mostrarClave = document.getElementById("vMostrarClave");
+  if (claveInput) claveInput.type = "password";
+  if (mostrarClave) mostrarClave.checked = false;
 }
 
 function ocultarLoginVendedor() {
   const el = document.getElementById("v-login-overlay");
   if (el) el.style.display = "none";
+}
+
+function vConfigurarToggleClave() {
+  const claveInput = document.getElementById("vClave");
+  const mostrarClave = document.getElementById("vMostrarClave");
+  if (!claveInput || !mostrarClave) return;
+
+  mostrarClave.addEventListener("change", () => {
+    claveInput.type = mostrarClave.checked ? "text" : "password";
+  });
 }
 
 /* ─── Activar modo vendedor ──────────────────────────────────────────── */
@@ -607,6 +621,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Login form
   const loginForm = document.getElementById("vFormLogin");
   if (loginForm) loginForm.addEventListener("submit", vLogin);
+  vConfigurarToggleClave();
 
   // Formulario pedido
   const formCliente = document.getElementById("vFormCliente");

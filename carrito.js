@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 if (typeof API_URL === 'undefined') {
-  window.API_URL = "https://script.google.com/macros/s/AKfycbxLuEaJBoQV7VHBoOnoWniFa3eVhuZhFix2anUYATw2b0CrQ4ofPAjWGBF3HltPTbbO/exec";
+  window.API_URL = "https://script.google.com/macros/s/AKfycbyiWFmktbcbD8qjosEULA13rpJPr9AkuAK7ZYkB8PzoMWMQcSFUFSqrg7pJkELoXxSy/exec";
 }
 if (typeof API_PROXY_URL === 'undefined') {
   window.API_PROXY_URL = "https://pedido-proxy.pedidosnia-cali.workers.dev";
